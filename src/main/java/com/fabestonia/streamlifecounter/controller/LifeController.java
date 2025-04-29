@@ -34,6 +34,11 @@ public class LifeController {
     @Value("${life.counter.path}")
     private String defaultPath;
 
+    @PostMapping("/first/{first}")
+    public void updateFirstPlayer(@PathVariable("first") Integer first) {
+        writeFile("First.txt", ""+first);
+    }
+
     @PostMapping("/player1/{newLife}")
     public void updatePlayer1Life(@PathVariable("newLife") Integer newLife) {
         writeFile("LifeL.txt", lifeAsString(newLife));
@@ -69,6 +74,11 @@ public class LifeController {
         writeFile("Round.txt", toUpperCase(roundNumber));
     }
 
+    @PostMapping("/trigger/draw")
+    public void triggerDraw() {
+        writeFile("Draw.txt", toUpperCase("DRAW"+Math.random()));
+    }
+
     @PostMapping("/timer/stop")
     public void stopTimer() {
         totalTime = 0;
@@ -101,9 +111,26 @@ public class LifeController {
         startTime(3300);
     }
 
-    @PostMapping("/timer/start/{minutes}")
+    @PostMapping("/timer/untimed")
+    public void untimedTimer() {
+        totalTime = 0;
+        isClockRunning = false;
+        if(timer != null) {
+            timer.cancel();
+            timer.purge();
+        }
+        writeFile("Timer.txt", "Untimed");
+        startTimeUp();
+    }
+
+    @PostMapping("/timer/start/minutes/{minutes}")
     public void startTimerWithMinutes(@PathVariable("minutes") int minutes) {
         startTime(minutes*60);
+    }
+
+    @PostMapping("/timer/start/{seconds}")
+    public void startTimerWithSeconds(@PathVariable("seconds") int seconds) {
+        startTime(seconds);
     }
 
     private String toUpperCase(String text){
@@ -144,6 +171,41 @@ public class LifeController {
                         int second = d.toSecondsPart() * -1;
                         String seconds =  second < 10 ? "0"+second : second+"";
                         writeFile("Timer.txt", (minutes + ":" + seconds));
+                    }
+                }
+            }
+        }, DELAY, PERIOD);
+    }
+
+    private void startTimeUp(){
+        if(timer != null) {
+            timer.cancel();
+            timer.purge();
+        }
+        timer = new Timer();
+        start = Instant.now();
+        totalTime = 0;
+        isClockRunning = true;
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if(isClockRunning) {
+                    totalTime++;
+                    if(totalTime == 0){
+                        isClockRunning = false;
+                        timer.cancel();
+                        timer.purge();
+                        writeFile("Timer.txt", "Time!");
+                    } else {
+                        Duration d = Duration.between(Instant.now(), start);
+                        int hour = d.toHoursPart() * -1;
+                        String hours =  hour < 10 ? "0"+hour : hour+"";
+                        int minute = d.toMinutesPart() * -1;
+                        String minutes =  minute < 10 ? "0"+minute : minute+"";
+                        int second = d.toSecondsPart() * -1;
+                        String seconds =  second < 10 ? "0"+second : second+"";
+                        String finalTime = hour > 0 ? (hours + ":" + minutes + ":" + seconds) : (minutes + ":" + seconds);
+                        writeFile("Timer.txt", finalTime);
                     }
                 }
             }
