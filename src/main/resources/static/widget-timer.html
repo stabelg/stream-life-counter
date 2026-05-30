@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { background: transparent; margin: 0; overflow: hidden; }
+    #v {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 52px;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      letter-spacing: 3px;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.4s;
+    }
+    #v.urgent {
+      color: #ff3b3b;
+      animation: blink 1s step-start infinite;
+    }
+    #v.hidden { visibility: hidden; }
+    @keyframes blink { 50% { opacity: 0.35; } }
+  </style>
+</head>
+<body>
+  <div id="v" class="hidden">00:00</div>
+  <script>
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws');
+      ws.onmessage = e => {
+        const timer = JSON.parse(e.data).timer;
+        const el = document.getElementById('v');
+        if (!timer || timer === '00:00') {
+          el.className = 'hidden';
+          return;
+        }
+        el.textContent = timer;
+        const parts = timer.split(':');
+        const secs = parseInt(parts[parts.length - 2] || 0) * 60 + parseInt(parts[parts.length - 1] || 0);
+        el.className = secs <= 300 ? 'urgent' : '';
+      };
+      ws.onclose = () => setTimeout(connect, 3000);
+    }
+    connect();
+  </script>
+</body>
+</html>

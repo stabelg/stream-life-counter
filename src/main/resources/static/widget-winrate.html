@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { background: transparent; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+
+    .panel {
+      width: 480px;
+      background: linear-gradient(160deg, rgba(10,10,14,0.94) 0%, rgba(6,6,10,0.92) 100%);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .panel-title { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: rgba(255,255,255,0.45); }
+    .panel-meta  { font-size: 10px; color: rgba(255,255,255,0.25); letter-spacing: 0.5px; }
+
+    /* column headers */
+    .col-headers {
+      display: flex; align-items: center; gap: 10px;
+      padding: 5px 14px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .ch { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: rgba(255,255,255,0.22); }
+    .ch-rank   { min-width: 18px; }
+    .ch-img    { width: 32px; flex-shrink: 0; }
+    .ch-name   { flex: 1; }
+    .ch-record { min-width: 52px; text-align: center; }
+    .ch-bar    { width: 90px; flex-shrink: 0; }
+    .ch-rate   { min-width: 46px; text-align: right; }
+
+    .wr-list { position: relative; overflow: hidden; }
+    .wr-page { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+    .wr-page.active { opacity: 1; position: relative; pointer-events: auto; }
+
+    .wr-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .wr-row:last-child { border-bottom: none; }
+
+    .wr-rank {
+      font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,0.22); min-width: 18px; text-align: right;
+      flex-shrink: 0;
+    }
+
+    .wr-avatar {
+      width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+      flex-shrink: 0; background: rgba(255,255,255,0.05);
+    }
+
+    .wr-info { flex: 1; min-width: 0; }
+    .wr-name {
+      font-size: 12px; font-weight: 600; color: #e8e8f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .wr-games { font-size: 10px; color: rgba(255,255,255,0.28); margin-top: 1px; }
+
+    .wr-record {
+      font-size: 11px; font-weight: 700;
+      min-width: 52px; text-align: center; flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+    .wr-w { color: #81c784; }
+    .wr-sep { color: rgba(255,255,255,0.2); }
+    .wr-l { color: rgba(229,115,115,0.7); }
+
+    .wr-bar-track {
+      width: 90px; height: 6px;
+      background: rgba(255,255,255,0.08); border-radius: 3px;
+      overflow: hidden; flex-shrink: 0; position: relative;
+    }
+    .wr-bar {
+      height: 100%; border-radius: 3px;
+      transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    }
+    /* 50% mark line */
+    .wr-bar-track::after {
+      content: ''; position: absolute;
+      left: 50%; top: 0; bottom: 0;
+      width: 1px; background: rgba(255,255,255,0.15);
+    }
+
+    .wr-rate {
+      font-size: 15px; font-weight: 800;
+      min-width: 46px; text-align: right; flex-shrink: 0;
+    }
+
+    .empty-msg {
+      padding: 24px; text-align: center;
+      color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">WIN RATE BY HERO</span>
+      <span class="panel-meta" id="hdr-meta">—</span>
+    </div>
+    <div class="col-headers">
+      <span class="ch ch-rank">#</span>
+      <span class="ch ch-img"></span>
+      <span class="ch ch-name">HERO</span>
+      <span class="ch ch-record">W — L</span>
+      <span class="ch ch-bar" style="text-align:center">WIN RATE</span>
+      <span class="ch ch-rate">%</span>
+    </div>
+    <div class="wr-list" id="list"></div>
+  </div>
+
+  <script>
+    const ROWS_PER_PAGE = 8;
+    const PAGE_DURATION = 7000;
+    const MIN_GAMES = 3;
+
+    let pages = [], currentPage = 0, cycleTimer = null;
+
+    function computeWinrates(byRound) {
+      const stats = {};
+
+      for (const pairings of Object.values(byRound)) {
+        for (const p of pairings) {
+          if (!p.result || p.result === 'DRAW') continue;
+          const winner = p.result === '1WIN' ? p.p1Hero : p.p2Hero;
+          const loser  = p.result === '1WIN' ? p.p2Hero : p.p1Hero;
+
+          if (winner) {
+            if (!stats[winner]) stats[winner] = { w: 0, l: 0 };
+            stats[winner].w++;
+          }
+          if (loser) {
+            if (!stats[loser]) stats[loser] = { w: 0, l: 0 };
+            stats[loser].l++;
+          }
+        }
+      }
+
+      return Object.entries(stats)
+        .filter(([, s]) => s.w + s.l >= MIN_GAMES)
+        .map(([hero, s]) => ({
+          hero,
+          wins: s.w,
+          losses: s.l,
+          games: s.w + s.l,
+          rate: s.w / (s.w + s.l) * 100,
+        }))
+        .sort((a, b) => b.rate - a.rate);
+    }
+
+    function rateColor(rate) {
+      if (rate >= 60) return '#66bb6a';
+      if (rate >= 55) return '#aed581';
+      if (rate >= 50) return '#d4e157';
+      if (rate >= 45) return '#ffa726';
+      return '#ef5350';
+    }
+
+    function render(data) {
+      const byRound = data.pairingsByRound || {};
+      const rows = computeWinrates(byRound);
+
+      const totalGames = Object.values(byRound)
+        .flat()
+        .filter(p => p.result && p.result !== 'DRAW' && p.p2Name && p.p2Name !== 'None').length;
+
+      document.getElementById('hdr-meta').textContent =
+        rows.length
+          ? `${rows.length} HEROES  ·  ${totalGames} MATCHES`
+          : `MIN ${MIN_GAMES} MATCHES REQUIRED`;
+
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      pages = [];
+
+      if (!rows.length) {
+        list.innerHTML = '<div class="empty-msg">NOT ENOUGH DATA YET</div>';
+        return;
+      }
+
+      const numPages = Math.ceil(rows.length / ROWS_PER_PAGE);
+      if (currentPage >= numPages) currentPage = numPages - 1;
+
+      for (let pg = 0; pg < numPages; pg++) {
+        const pageEl = document.createElement('div');
+        pageEl.className = 'wr-page' + (pg === currentPage ? ' active' : '');
+
+        const slice = rows.slice(pg * ROWS_PER_PAGE, (pg + 1) * ROWS_PER_PAGE);
+        const startRank = pg * ROWS_PER_PAGE + 1;
+
+        slice.forEach((r, i) => {
+          const rank = startRank + i;
+          const color = rateColor(r.rate);
+          pageEl.innerHTML += `
+            <div class="wr-row">
+              <span class="wr-rank">${rank}</span>
+              <img class="wr-avatar"
+                   src="/heroes/${encodeURIComponent(r.hero)}.jpg"
+                   onerror="this.style.opacity='0'">
+              <div class="wr-info">
+                <div class="wr-name">${esc(r.hero)}</div>
+                <div class="wr-games">${r.games} match${r.games !== 1 ? 'es' : ''}</div>
+              </div>
+              <div class="wr-record">
+                <span class="wr-w">${r.wins}</span>
+                <span class="wr-sep"> — </span>
+                <span class="wr-l">${r.losses}</span>
+              </div>
+              <div class="wr-bar-track">
+                <div class="wr-bar" style="width:${r.rate.toFixed(1)}%;background:${color}"></div>
+              </div>
+              <div class="wr-rate" style="color:${color}">${r.rate.toFixed(1)}%</div>
+            </div>`;
+        });
+
+        list.appendChild(pageEl);
+        pages.push(pageEl);
+      }
+
+      startCycle(numPages);
+    }
+
+    function startCycle(numPages) {
+      if (cycleTimer) clearInterval(cycleTimer);
+      if (numPages <= 1) return;
+      cycleTimer = setInterval(() => {
+        pages[currentPage].classList.remove('active');
+        currentPage = (currentPage + 1) % numPages;
+        pages[currentPage].classList.add('active');
+      }, PAGE_DURATION);
+    }
+
+    function esc(s) {
+      return s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+    }
+
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws/tournament');
+      ws.onmessage = e => render(JSON.parse(e.data));
+      ws.onclose   = () => setTimeout(connect, 3000);
+    }
+    connect();
+  </script>
+</body>
+</html>

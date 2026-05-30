@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { background: transparent; margin: 0; overflow: hidden; }
+    #v {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="v">ROUND 1</div>
+  <script>
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws');
+      ws.onmessage = e => { document.getElementById('v').textContent = JSON.parse(e.data).round; };
+      ws.onclose = () => setTimeout(connect, 3000);
+    }
+    connect();
+  </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { width: 100%; background: transparent; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+
+    .strip {
+      display: flex;
+      align-items: stretch;
+      width: 100%;
+      background: linear-gradient(180deg, rgba(8,8,10,0.93) 0%, rgba(4,4,6,0.9) 100%);
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+
+    /* ── Round label ── */
+    .round-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 18px;
+      min-width: 80px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .rl-top { font-size: 9px; letter-spacing: 2px; color: rgba(255,255,255,0.4); }
+    .rl-num { font-size: 26px; font-weight: 900; color: #ffffff; line-height: 1; }
+
+    /* ── Cards container — fades in/out on page switch ── */
+    .cards {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+      transition: opacity 0.35s ease;
+    }
+
+    /* ── Individual table card ── */
+    .table-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 8px 14px;
+      border-left: 1px solid rgba(255,255,255,0.05);
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .tbl-header {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .pname {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f0f0f4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .phero {
+      font-size: 10px;
+      color: rgba(255,255,255,0.38);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+      max-width: 150px;
+    }
+
+    .result-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .res-win  { background: rgba(76,175,80,0.25); color: #81c784; }
+    .res-loss { background: rgba(244,67,54,0.15); color: rgba(229,115,115,0.7); }
+    .res-draw { background: rgba(255,193,7,0.2);  color: #ffd54f; }
+
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* ── Page dots ── */
+    .dots {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: background 0.3s;
+    }
+    .dot.active { background: rgba(255,255,255,0.75); }
+  </style>
+</head>
+<body>
+  <div class="strip">
+    <div class="round-label">
+      <span class="rl-top">ROUND</span>
+      <span class="rl-num" id="round-num">—</span>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <script>
+    const TABLES_PER_PAGE = 4;
+    const PAGE_DURATION   = 6000;
+    const FADE_MS         = 350;
+
+    let allPairings = [];
+    let currentPage = 0;
+    let numPages    = 0;
+    let cycleTimer  = null;
+
+    function flag(code) {
+      if (!code || code.length !== 2) return '';
+      return `<img src="https://cdn.jsdelivr.net/gh/HatScripts/circle-flags@gh-pages/flags/${code.toLowerCase()}.svg"
+                   style="width:20px;height:20px;border-radius:50%;vertical-align:middle;flex-shrink:0"
+                   onerror="this.style.display='none'">`;
+    }
+
+    function heroImg(name, size) {
+      if (!name) return '';
+      return `<img src="/heroes/${encodeURIComponent(name)}.jpg"
+                   style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0"
+                   onerror="this.style.display='none'">`;
+    }
+
+    function badge(result, side) {
+      if (!result) return '';
+      if (result === 'DRAW') return `<span class="result-badge res-draw">DRAW</span>`;
+      const win = (result === '1WIN' && side === 1) || (result === '2WIN' && side === 2);
+      return `<span class="result-badge ${win ? 'res-win' : 'res-loss'}">${win ? 'WIN' : 'LOSS'}</span>`;
+    }
+
+    function cardHtml(p) {
+      const bye = !p.p2Name || p.p2Name === 'None' || p.p2Name === '';
+      return `
+        <div class="table-card">
+          <div class="tbl-header">TABLE ${p.table}</div>
+          <div class="player-row">
+            <span class="flag">${flag(p.p1Country)}</span>
+            ${heroImg(p.p1Hero, 26)}
+            <span class="pname">${esc(p.p1Name)}</span>
+            <span class="phero">${esc(p.p1Hero)}</span>
+            ${badge(p.result, 1)}
+          </div>
+          <div class="divider"></div>
+          <div class="player-row">
+            ${bye
+              ? `<span class="pname" style="color:rgba(255,255,255,0.22);font-style:italic">BYE</span>`
+              : `<span class="flag">${flag(p.p2Country)}</span>
+                 ${heroImg(p.p2Hero, 26)}
+                 <span class="pname">${esc(p.p2Name)}</span>
+                 <span class="phero">${esc(p.p2Hero)}</span>
+                 ${badge(p.result, 2)}`
+            }
+          </div>
+        </div>`;
+    }
+
+    function showPage(idx) {
+      const cards = document.getElementById('cards');
+      const slice = allPairings.slice(idx * TABLES_PER_PAGE, (idx + 1) * TABLES_PER_PAGE);
+
+      let html = slice.map(cardHtml).join('');
+      // pad empty cards to keep layout stable
+      for (let i = slice.length; i < TABLES_PER_PAGE; i++) {
+        html += `<div class="table-card" style="visibility:hidden"></div>`;
+      }
+      cards.innerHTML = html;
+
+      // update dots
+      document.querySelectorAll('.dot').forEach((d, i) => {
+        d.className = 'dot' + (i === idx ? ' active' : '');
+      });
+    }
+
+    function renderDots() {
+      const dots = document.getElementById('dots');
+      dots.innerHTML = '';
+      for (let i = 0; i < numPages; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot' + (i === 0 ? ' active' : '');
+        dots.appendChild(d);
+      }
+    }
+
+    function render(pairings, round) {
+      document.getElementById('round-num').textContent = round || '—';
+
+      allPairings = pairings || [];
+      const newNumPages = Math.ceil(allPairings.length / TABLES_PER_PAGE) || 1;
+
+      // Clamp page index if data shrank
+      if (currentPage >= newNumPages) currentPage = newNumPages - 1;
+
+      const pagesChanged = newNumPages !== numPages;
+      numPages = newNumPages;
+
+      if (pagesChanged) {
+        renderDots();
+        startCycle(); // restart timer only when page count changes
+      }
+
+      showPage(currentPage); // always refresh content of current page in-place
+    }
+
+    function startCycle() {
+      if (cycleTimer) clearInterval(cycleTimer);
+      if (numPages <= 1) return;
+
+      cycleTimer = setInterval(() => {
+        const cards = document.getElementById('cards');
+        cards.style.opacity = '0';
+
+        setTimeout(() => {
+          currentPage = (currentPage + 1) % numPages;
+          showPage(currentPage);
+          cards.style.opacity = '1';
+        }, FADE_MS);
+      }, PAGE_DURATION);
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws/tournament');
+      ws.onmessage = e => { const d = JSON.parse(e.data); render(d.pairings, d.round); };
+      ws.onclose   = () => setTimeout(connect, 3000);
+    }
+
+    connect();
+  </script>
+</body>
+</html>

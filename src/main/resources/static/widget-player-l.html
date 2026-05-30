@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { background: transparent; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+
+    .profile {
+      width: 360px;
+      background: linear-gradient(170deg, rgba(12,10,20,0.96) 0%, rgba(6,6,12,0.94) 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .prof-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px 7px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .prof-header-title {
+      font-size: 9px; font-weight: 700; letter-spacing: 2.5px;
+      color: rgba(255,255,255,0.3);
+    }
+    #ws-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #ef5350; transition: background 0.3s; flex-shrink: 0;
+    }
+    #ws-dot.on { background: #66bb6a; box-shadow: 0 0 5px #66bb6a; }
+
+    /* ── Placeholder ── */
+    .placeholder {
+      padding: 36px 16px;
+      text-align: center;
+      color: rgba(255,255,255,0.2);
+      font-size: 12px; letter-spacing: 1px;
+    }
+
+    /* ── Hero section ── */
+    .hero-section {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 18px 20px 14px;
+      background: linear-gradient(180deg, rgba(124,106,247,0.09) 0%, transparent 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 4px;
+    }
+
+    .hero-portrait {
+      width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
+      border: 2px solid rgba(124,106,247,0.5);
+      box-shadow: 0 0 22px rgba(124,106,247,0.22), 0 4px 16px rgba(0,0,0,0.5);
+      background: rgba(124,106,247,0.1);
+      flex-shrink: 0;
+    }
+
+    .player-identity {
+      display: flex; align-items: center; gap: 8px; margin-top: 10px;
+    }
+
+    .player-name {
+      font-size: 19px; font-weight: 800; color: #ffffff; line-height: 1.1;
+    }
+
+    .player-hero {
+      font-size: 11px; color: #9b8dfb; letter-spacing: 0.3px;
+      text-align: center;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .stat {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 9px 6px 8px;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat:last-child { border-right: none; }
+    .stat-val  { font-size: 19px; font-weight: 900; color: #fff; line-height: 1; }
+    .stat-lbl  { font-size: 8px; letter-spacing: 1.5px; color: rgba(255,255,255,0.27); margin-top: 3px; }
+    .stat-sub  { font-size: 9px; font-weight: 700; margin-top: 3px; letter-spacing: 0.5px; }
+
+    /* ── History ── */
+    .hist-header {
+      padding: 6px 16px 4px;
+      font-size: 8px; font-weight: 700; letter-spacing: 2px;
+      color: rgba(255,255,255,0.22);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .hist-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 6px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.035);
+    }
+    .hist-row:last-child { border-bottom: none; }
+
+    .hist-round {
+      font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.07); border-radius: 3px;
+      padding: 2px 5px; flex-shrink: 0;
+    }
+
+    .hist-flag img { width: 16px; height: 16px; border-radius: 50%; display: block; }
+
+    .hist-hero-thumb {
+      width: 22px; height: 22px; border-radius: 50%; object-fit: cover;
+      flex-shrink: 0; background: rgba(255,255,255,0.05);
+    }
+
+    .hist-opp {
+      flex: 1; min-width: 0;
+      font-size: 12px; font-weight: 600; color: #e0e0ea;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .hist-opp-hero {
+      font-size: 10px; color: rgba(255,255,255,0.28);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100px; flex-shrink: 1;
+    }
+
+    .hist-res {
+      font-size: 10px; font-weight: 800;
+      padding: 2px 7px; border-radius: 3px;
+      flex-shrink: 0; letter-spacing: 0.5px;
+    }
+    .res-win  { background: rgba(76,175,80,0.18);  color: #81c784; }
+    .res-loss { background: rgba(244,67,54,0.14);  color: #ef9a9a; }
+    .res-draw { background: rgba(255,193,7,0.18);  color: #ffd54f; }
+    .res-tbd  { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.3); }
+    .res-bye  { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.2); font-style: italic; }
+
+    .no-data {
+      padding: 12px 16px;
+      font-size: 11px; color: rgba(255,255,255,0.2);
+    }
+  </style>
+</head>
+<body>
+<div class="profile">
+  <div class="prof-header">
+    <span class="prof-header-title">PLAYER PROFILE</span>
+  </div>
+  <div id="root">
+    <div class="placeholder">Waiting for match data…</div>
+  </div>
+</div>
+
+<script>
+  // ── Which side this widget tracks ──────────────────────────────────────────
+  const SIDE = 'l'; // left player
+
+  let gameState  = null;
+  let tourData   = null;
+  let connected  = 0; // bitmask: 1=game, 2=tour
+
+  // ── WebSocket connections ─────────────────────────────────────────────────
+  function connectGame() {
+    const ws = new WebSocket('ws://localhost:8080/ws');
+    ws.onopen  = () => { connected |= 1; updateDot(); };
+    ws.onmessage = e => { gameState = JSON.parse(e.data); update(); };
+    ws.onclose = () => { connected &= ~1; updateDot(); setTimeout(connectGame, 3000); };
+  }
+
+  function connectTour() {
+    const ws = new WebSocket('ws://localhost:8080/ws/tournament');
+    ws.onopen  = () => { connected |= 2; updateDot(); };
+    ws.onmessage = e => { tourData = JSON.parse(e.data); update(); };
+    ws.onclose = () => { connected &= ~2; updateDot(); setTimeout(connectTour, 3000); };
+  }
+
+  function updateDot() {
+    //document.getElementById('ws-dot').className = connected === 3 ? 'on' : '';
+  }
+
+  // ── Main update ───────────────────────────────────────────────────────────
+  function update() {
+    if (!gameState) return;
+
+    const name = SIDE === 'l' ? gameState.playerL : gameState.playerR;
+    const hero = SIDE === 'l' ? gameState.heroL   : gameState.heroR;
+
+    const isDefault = !name || name === 'PLAYER1' || name === 'PLAYER2' || name === '';
+    if (isDefault) {
+      document.getElementById('root').innerHTML =
+        '<div class="placeholder">Waiting for match data…</div>';
+      return;
+    }
+
+    const profile = buildProfile(name, hero, tourData);
+    renderProfile(profile);
+  }
+
+  // ── Data computation ──────────────────────────────────────────────────────
+  function buildProfile(name, heroFallback, tour) {
+    const byRound  = (tour && tour.pairingsByRound) || {};
+    const standings = (tour && tour.standings)      || [];
+
+    const standing = standings.find(s =>
+      s.name && s.name.toLowerCase() === name.toLowerCase()
+    );
+
+    // Build match-by-round history
+    const history = [];
+    const rounds  = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+
+    for (const r of rounds) {
+      for (const p of (byRound[r] || [])) {
+        const isP1 = p.p1Name && p.p1Name.toLowerCase() === name.toLowerCase();
+        const isP2 = p.p2Name && p.p2Name.toLowerCase() === name.toLowerCase();
+        if (!isP1 && !isP2) continue;
+
+        const opp        = isP1 ? p.p2Name    : p.p1Name;
+        const oppHero    = isP1 ? p.p2Hero    : p.p1Hero;
+        const oppCountry = isP1 ? p.p2Country : p.p1Country;
+        const myHero     = isP1 ? p.p1Hero    : p.p2Hero;
+        const myCountry  = isP1 ? p.p1Country : p.p2Country;
+        const bye        = !opp || opp === 'None' || opp === '';
+
+        let result = '';
+        if (p.result === 'DRAW') result = 'DRAW';
+        else if ((p.result === '1WIN' && isP1) || (p.result === '2WIN' && isP2)) result = 'WIN';
+        else if ((p.result === '1WIN' && isP2) || (p.result === '2WIN' && isP1)) result = 'LOSS';
+
+        history.push({ round: r, opp, oppHero, oppCountry, myHero, myCountry, result, bye });
+        break; // one entry per round
+      }
+    }
+
+    // Stats (completed matches only)
+    const played = history.filter(h => h.result && !h.bye);
+    const wins   = played.filter(h => h.result === 'WIN').length;
+    const losses = played.filter(h => h.result === 'LOSS').length;
+    const draws  = played.filter(h => h.result === 'DRAW').length;
+    const wr     = played.length > 0 ? Math.round(wins / played.length * 100) : null;
+
+    // Current streak (most recent completed matches, backwards)
+    let streak = 0, streakType = null;
+    for (let i = played.length - 1; i >= 0; i--) {
+      const r = played[i].result;
+      if (!streakType) streakType = r;
+      if (r !== streakType) break;
+      streak++;
+    }
+
+    // Hero / country resolution (last known → standing → fallback)
+    const lastKnown = [...history].reverse().find(h => h.myHero);
+    const hero      = (lastKnown && lastKnown.myHero) || (standing && standing.hero) || heroFallback || '';
+    const country   = (lastKnown && lastKnown.myCountry) || (standing && standing.country) || '';
+    const rank      = standing ? standing.rank : null;
+
+    return { name, hero, country, rank, wins, losses, draws, wr, streak, streakType, history };
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function renderProfile(p) {
+    const root = document.getElementById('root');
+
+    // ── Record cell
+    const recHtml = `
+      <span style="color:#66bb6a">${p.wins}</span>
+      <span style="color:rgba(255,255,255,0.2)"> — </span>
+      <span style="color:#ef9a9a">${p.losses}</span>
+      ${p.draws > 0 ? `<span style="color:rgba(255,255,255,0.2)"> — </span><span style="color:#ffd54f">${p.draws}</span>` : ''}`;
+
+    // ── History rows
+    const histRows = p.history.map(h => {
+      let resClass = 'res-tbd', resLabel = '—';
+      if (h.bye) { resClass = 'res-bye'; resLabel = 'BYE'; }
+      else if (h.result === 'WIN')  { resClass = 'res-win';  resLabel = 'WIN'; }
+      else if (h.result === 'LOSS') { resClass = 'res-loss'; resLabel = 'LOSS'; }
+      else if (h.result === 'DRAW') { resClass = 'res-draw'; resLabel = 'DRAW'; }
+
+      const oppBlock = h.bye
+        ? `<span class="hist-opp" style="color:rgba(255,255,255,0.2);font-style:italic">BYE</span>`
+        : `${flagEl(h.oppCountry)}
+           <img class="hist-hero-thumb"
+                src="/heroes/${enc(h.oppHero)}.jpg"
+                onerror="this.style.opacity='0'">
+           <span class="hist-opp">${esc(h.opp)}</span>
+           <span class="hist-opp-hero">${esc(h.oppHero)}</span>`;
+
+      return `
+        <div class="hist-row">
+          <span class="hist-round">R${h.round}</span>
+          ${oppBlock}
+          <span class="hist-res ${resClass}">${resLabel}</span>
+        </div>`;
+    }).join('');
+
+    root.innerHTML = `
+      <div class="hero-section">
+        <img class="hero-portrait"
+             src="/heroes/${enc(p.hero)}.jpg"
+             onerror="this.src=''" alt="">
+        <div class="player-identity">
+          ${flagEl(p.country, 20)}
+          <div class="player-name">${esc(p.name)}</div>
+        </div>
+        <div class="player-hero">${esc(p.hero) || '—'}</div>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-val">${p.rank != null ? '#' + p.rank : '—'}</div>
+          <div class="stat-lbl">RANK</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" style="font-size:15px">${recHtml}</div>
+          <div class="stat-lbl">W — L${p.draws > 0 ? ' — D' : ''}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val">${p.wr != null ? p.wr + '%' : '—'}</div>
+          <div class="stat-lbl">WIN RATE</div>
+        </div>
+      </div>
+
+      <div class="hist-header">MATCH HISTORY</div>
+      ${histRows || '<div class="no-data">No matches recorded yet</div>'}
+    `;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function flagEl(code, size) {
+    size = size || 16;
+    if (!code || code.length !== 2) return '';
+    return `<span class="hist-flag">
+      <img src="https://cdn.jsdelivr.net/gh/HatScripts/circle-flags@gh-pages/flags/${code.toLowerCase()}.svg"
+           style="width:${size}px;height:${size}px;border-radius:50%;display:block;flex-shrink:0"
+           onerror="this.style.display='none'">
+    </span>`;
+  }
+
+  function enc(s) { return s ? encodeURIComponent(s) : ''; }
+  function esc(s) {
+    return s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+  }
+
+  connectGame();
+  connectTour();
+</script>
+</body>
+</html>

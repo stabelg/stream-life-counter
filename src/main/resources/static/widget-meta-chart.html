@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { background: transparent; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+
+    .panel {
+      width: 580px;
+      background: linear-gradient(160deg, rgba(10,10,14,0.95) 0%, rgba(6,6,10,0.93) 100%);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px 9px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .panel-title { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: rgba(255,255,255,0.45); }
+    .panel-meta  { font-size: 10px; color: rgba(255,255,255,0.25); letter-spacing: 0.5px; }
+
+    /* ── Body: donut left + legend right ── */
+    .body {
+      display: flex;
+      align-items: center;
+      padding: 18px 16px 18px 10px;
+      gap: 16px;
+    }
+
+    /* ── Donut ── */
+    .donut-wrap {
+      flex-shrink: 0;
+      position: relative;
+      width: 220px; height: 220px;
+    }
+
+    .donut-wrap svg { width: 220px; height: 220px; }
+
+    .donut-center {
+      position: absolute;
+      inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .dc-num  { font-size: 32px; font-weight: 900; color: #fff; line-height: 1; }
+    .dc-lbl  { font-size: 9px; font-weight: 700; letter-spacing: 2px; color: rgba(255,255,255,0.35); margin-top: 4px; }
+    .dc-hero { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; max-width: 100px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Legend ── */
+    .legend { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+
+    .legend-page { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+    .legend-page.active { opacity: 1; position: relative; pointer-events: auto; }
+
+    .legend-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .legend-row:last-child { border-bottom: none; }
+
+    .leg-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .leg-avatar {
+      width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+      flex-shrink: 0; background: rgba(255,255,255,0.05);
+    }
+
+    .leg-name {
+      flex: 1; min-width: 0;
+      font-size: 12px; font-weight: 600; color: #e8e8f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .leg-pct {
+      font-size: 13px; font-weight: 800; flex-shrink: 0;
+    }
+
+    .leg-count {
+      font-size: 10px; color: rgba(255,255,255,0.28);
+      min-width: 28px; text-align: right; flex-shrink: 0;
+    }
+
+    .empty-msg {
+      padding: 40px 20px; text-align: center;
+      color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+<div class="panel">
+  <div class="panel-header">
+    <span class="panel-title">METAGAME — PIE CHART</span>
+    <span class="panel-meta" id="hdr-meta">—</span>
+  </div>
+  <div class="body" id="body">
+    <div class="empty-msg" style="width:100%">NO DATA — FETCH TOURNAMENT DATA FIRST</div>
+  </div>
+</div>
+
+<script>
+  const ROWS_PER_PAGE = 8;
+  const PAGE_DURATION = 7000;
+
+  const PALETTE = [
+    '#7c6af7','#38bdf8','#f59e0b','#4ade80','#f87171',
+    '#a78bfa','#0ea5e9','#fb923c','#86efac','#fda4af',
+    '#818cf8','#06b6d4','#fbbf24','#34d399','#f472b6',
+    '#60a5fa','#c084fc','#2dd4bf','#e879f9','#facc15',
+  ];
+
+  let pages = [], currentPage = 0, cycleTimer = null;
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  function computeMeta(byRound) {
+    const nums = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+    if (!nums.length) return { heroes: [], total: 0 };
+
+    const r1 = byRound[nums[0]] || [];
+    const heroCount = {};
+    const seen = new Set();
+
+    for (const p of r1) {
+      if (p.p1Name && p.p1Hero && !seen.has(p.p1Name)) {
+        seen.add(p.p1Name);
+        heroCount[p.p1Hero] = (heroCount[p.p1Hero] || 0) + 1;
+      }
+      if (p.p2Name && p.p2Name !== 'None' && p.p2Hero && !seen.has(p.p2Name)) {
+        seen.add(p.p2Name);
+        heroCount[p.p2Hero] = (heroCount[p.p2Hero] || 0) + 1;
+      }
+    }
+
+    const total = Object.values(heroCount).reduce((a, b) => a + b, 0);
+    const heroes = Object.entries(heroCount)
+      .map(([hero, count]) => ({ hero, count, pct: total ? count / total * 100 : 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    return { heroes, total };
+  }
+
+  // ── SVG donut ─────────────────────────────────────────────────────────────
+  const CX = 110, CY = 110, R_OUT = 98, R_IN = 62, GAP = 0.015;
+
+  function polarX(cx, r, angle) { return cx + r * Math.cos(angle); }
+  function polarY(cy, r, angle) { return cy + r * Math.sin(angle); }
+
+  function arcPath(startA, endA) {
+    const s = startA + GAP, e = endA - GAP;
+    const large = (e - s) > Math.PI ? 1 : 0;
+    const x1o = polarX(CX, R_OUT, s), y1o = polarY(CY, R_OUT, s);
+    const x2o = polarX(CX, R_OUT, e), y2o = polarY(CY, R_OUT, e);
+    const x1i = polarX(CX, R_IN, e),  y1i = polarY(CY, R_IN, e);
+    const x2i = polarX(CX, R_IN, s),  y2i = polarY(CY, R_IN, s);
+    return `M${x1o},${y1o} A${R_OUT},${R_OUT} 0 ${large} 1 ${x2o},${y2o} L${x1i},${y1i} A${R_IN},${R_IN} 0 ${large} 0 ${x2i},${y2i} Z`;
+  }
+
+  function buildDonut(heroes, total) {
+    let angle = -Math.PI / 2;
+    const paths = heroes.map((h, i) => {
+      const sweep = (h.pct / 100) * 2 * Math.PI;
+      const start = angle;
+      angle += sweep;
+      const color = PALETTE[i % PALETTE.length];
+      return `<path d="${arcPath(start, angle)}" fill="${color}" />`;
+    }).join('');
+
+    const topHero = heroes[0] ? heroes[0].hero : '';
+
+    return `
+      <div class="donut-wrap">
+        <svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+          ${paths}
+        </svg>
+        <div class="donut-center">
+          <div class="dc-num">${total}</div>
+          <div class="dc-lbl">PLAYERS</div>
+          <div class="dc-hero">${esc(topHero)}</div>
+        </div>
+      </div>`;
+  }
+
+  // ── Legend ────────────────────────────────────────────────────────────────
+  function buildLegend(heroes) {
+    const numPages = Math.ceil(heroes.length / ROWS_PER_PAGE);
+    if (currentPage >= numPages) currentPage = 0;
+
+    let html = '<div class="legend" id="legend">';
+    for (let pg = 0; pg < numPages; pg++) {
+      html += `<div class="legend-page${pg === currentPage ? ' active' : ''}">`;
+      const slice = heroes.slice(pg * ROWS_PER_PAGE, (pg + 1) * ROWS_PER_PAGE);
+      slice.forEach((h, i) => {
+        const color = PALETTE[(pg * ROWS_PER_PAGE + i) % PALETTE.length];
+        html += `
+          <div class="legend-row">
+            <div class="leg-dot" style="background:${color}"></div>
+            <img class="leg-avatar"
+                 src="/heroes/${encodeURIComponent(h.hero)}.jpg"
+                 onerror="this.style.opacity='0'">
+            <div class="leg-name">${esc(h.hero)}</div>
+            <div class="leg-pct" style="color:${color}">${h.pct.toFixed(1)}%</div>
+            <div class="leg-count">${h.count}p</div>
+          </div>`;
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    return { html, numPages };
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function render(data) {
+    const byRound = data.pairingsByRound || {};
+    const { heroes, total } = computeMeta(byRound);
+
+    document.getElementById('hdr-meta').textContent =
+      total ? `${total} PLAYERS  ·  ${heroes.length} HEROES` : '—';
+
+    const body = document.getElementById('body');
+
+    if (!heroes.length) {
+      body.innerHTML = '<div class="empty-msg" style="width:100%">NO DATA — FETCH TOURNAMENT DATA FIRST</div>';
+      return;
+    }
+
+    const donutHtml = buildDonut(heroes, total);
+    const { html: legendHtml, numPages } = buildLegend(heroes);
+
+    body.innerHTML = donutHtml + legendHtml;
+    pages = Array.from(document.querySelectorAll('.legend-page'));
+    startCycle(numPages);
+  }
+
+  function startCycle(numPages) {
+    if (cycleTimer) clearInterval(cycleTimer);
+    if (numPages <= 1) return;
+    cycleTimer = setInterval(() => {
+      pages[currentPage].classList.remove('active');
+      currentPage = (currentPage + 1) % numPages;
+      pages[currentPage].classList.add('active');
+    }, PAGE_DURATION);
+  }
+
+  function esc(s) {
+    return s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+  }
+
+  function connect() {
+    const ws = new WebSocket('ws://localhost:8080/ws/tournament');
+    ws.onmessage = e => render(JSON.parse(e.data));
+    ws.onclose   = () => setTimeout(connect, 3000);
+  }
+  connect();
+</script>
+</body>
+</html>

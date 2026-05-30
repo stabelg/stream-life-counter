@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { background: transparent; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+
+    .panel {
+      width: 440px;
+      background: linear-gradient(160deg, rgba(10,10,14,0.94) 0%, rgba(6,6,10,0.92) 100%);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .panel-title { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: rgba(255,255,255,0.45); }
+    .panel-meta  { font-size: 10px; color: rgba(255,255,255,0.25); letter-spacing: 0.5px; }
+
+    .meta-list { position: relative; overflow: hidden; }
+    .meta-page { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+    .meta-page.active { opacity: 1; position: relative; pointer-events: auto; }
+
+    .meta-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .meta-row:last-child { border-bottom: none; }
+
+    .mr-rank {
+      font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,0.22); min-width: 18px; text-align: right;
+      flex-shrink: 0;
+    }
+    .mr-rank.top3 { color: #d4af37; }
+
+    .mr-avatar {
+      width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+      flex-shrink: 0; background: rgba(255,255,255,0.05);
+    }
+
+    .mr-info { flex: 1; min-width: 0; }
+    .mr-name {
+      font-size: 13px; font-weight: 600; color: #f0f0f4;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mr-bar-wrap {
+      height: 3px; background: rgba(255,255,255,0.08);
+      border-radius: 2px; margin-top: 5px;
+    }
+    .mr-bar { height: 100%; border-radius: 2px; background: #7c6af7; }
+
+    .mr-right { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+    .mr-pct   { font-size: 15px; font-weight: 800; color: #f0f0f4; line-height: 1; }
+    .mr-count { font-size: 10px; color: rgba(255,255,255,0.28); margin-top: 2px; }
+
+    .empty-msg {
+      padding: 20px; text-align: center;
+      color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">METAGAME</span>
+      <span class="panel-meta" id="hdr-meta">—</span>
+    </div>
+    <div class="meta-list" id="list"></div>
+  </div>
+
+  <script>
+    const ROWS_PER_PAGE = 8;
+    const PAGE_DURATION = 7000;
+
+    let pages = [], currentPage = 0, cycleTimer = null;
+
+    function computeMeta(byRound) {
+      const nums = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+      if (!nums.length) return { heroes: [], total: 0 };
+
+      const r1 = byRound[nums[0]] || [];
+      const heroCount = {};
+      const seen = new Set();
+
+      for (const p of r1) {
+        if (p.p1Name && p.p1Hero && !seen.has(p.p1Name)) {
+          seen.add(p.p1Name);
+          heroCount[p.p1Hero] = (heroCount[p.p1Hero] || 0) + 1;
+        }
+        if (p.p2Name && p.p2Name !== 'None' && p.p2Hero && !seen.has(p.p2Name)) {
+          seen.add(p.p2Name);
+          heroCount[p.p2Hero] = (heroCount[p.p2Hero] || 0) + 1;
+        }
+      }
+
+      const total = Object.values(heroCount).reduce((a, b) => a + b, 0);
+      const heroes = Object.entries(heroCount)
+        .map(([hero, count]) => ({ hero, count, pct: total ? count / total * 100 : 0 }))
+        .sort((a, b) => b.count - a.count);
+
+      return { heroes, total };
+    }
+
+    function render(data) {
+      const byRound = data.pairingsByRound || {};
+      const { heroes, total } = computeMeta(byRound);
+
+      document.getElementById('hdr-meta').textContent =
+        total ? `${total} PLAYERS  ·  ${Object.keys(byRound).length} ROUNDS` : '—';
+
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      pages = [];
+
+      if (!heroes.length) {
+        list.innerHTML = '<div class="empty-msg">NO DATA</div>';
+        return;
+      }
+
+      const maxPct = heroes[0].pct;
+      const numPages = Math.ceil(heroes.length / ROWS_PER_PAGE);
+      if (currentPage >= numPages) currentPage = numPages - 1;
+
+      for (let pg = 0; pg < numPages; pg++) {
+        const pageEl = document.createElement('div');
+        pageEl.className = 'meta-page' + (pg === currentPage ? ' active' : '');
+
+        const slice = heroes.slice(pg * ROWS_PER_PAGE, (pg + 1) * ROWS_PER_PAGE);
+        const startRank = pg * ROWS_PER_PAGE + 1;
+
+        slice.forEach((h, i) => {
+          const rank = startRank + i;
+          const barW = maxPct > 0 ? (h.pct / maxPct * 100).toFixed(1) : 0;
+          pageEl.innerHTML += `
+            <div class="meta-row">
+              <span class="mr-rank${rank <= 3 ? ' top3' : ''}">${rank}</span>
+              <img class="mr-avatar"
+                   src="/heroes/${encodeURIComponent(h.hero)}.jpg"
+                   onerror="this.style.opacity='0'">
+              <div class="mr-info">
+                <div class="mr-name">${esc(h.hero)}</div>
+                <div class="mr-bar-wrap">
+                  <div class="mr-bar" style="width:${barW}%"></div>
+                </div>
+              </div>
+              <div class="mr-right">
+                <div class="mr-pct">${h.pct.toFixed(1)}%</div>
+                <div class="mr-count">${h.count} player${h.count !== 1 ? 's' : ''}</div>
+              </div>
+            </div>`;
+        });
+
+        list.appendChild(pageEl);
+        pages.push(pageEl);
+      }
+
+      startCycle(numPages);
+    }
+
+    function startCycle(numPages) {
+      if (cycleTimer) clearInterval(cycleTimer);
+      if (numPages <= 1) return;
+      cycleTimer = setInterval(() => {
+        pages[currentPage].classList.remove('active');
+        currentPage = (currentPage + 1) % numPages;
+        pages[currentPage].classList.add('active');
+      }, PAGE_DURATION);
+    }
+
+    function esc(s) {
+      return s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+    }
+
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws/tournament');
+      ws.onmessage = e => render(JSON.parse(e.data));
+      ws.onclose   = () => setTimeout(connect, 3000);
+    }
+    connect();
+  </script>
+</body>
+</html>

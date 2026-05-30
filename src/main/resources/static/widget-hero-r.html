@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { background: transparent; margin: 0; overflow: hidden; }
+    #v {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.75);
+      white-space: nowrap;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div id="v"></div>
+  <script>
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws');
+      ws.onmessage = e => { document.getElementById('v').textContent = JSON.parse(e.data).heroR; };
+      ws.onclose = () => setTimeout(connect, 3000);
+    }
+    connect();
+  </script>
+</body>
+</html>

@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #05050d;
+      --surface:     #0b0b18;
+      --surface2:    #111122;
+      --border:      #1c1c2e;
+      --border-hi:   #282840;
+
+      --amber:       #e8a020;
+      --amber-dim:   #6b4a0e;
+      --amber-glow:  rgba(232,160,32,0.1);
+      --blue:        #38bdf8;
+      --blue-dim:    #0b3a52;
+      --blue-glow:   rgba(56,189,248,0.08);
+      --purple:      #a78bfa;
+      --purple-dim:  #3d2f6e;
+      --green:       #4ade80;
+      --red:         #f87171;
+
+      --text:        #e2e8f0;
+      --text2:       #94a3b8;
+      --text3:       #475569;
+
+      --font-ui:   'Rajdhani', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+      --r:  7px;
+      --r2: 10px;
+    }
+
+    body {
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 35% at 50% -5%,  rgba(232,160,32,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 30% at 100% 110%, rgba(56,189,248,0.04) 0%, transparent 60%);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ══════════════ TOPBAR ══════════════ */
+    .topbar {
+      position: sticky; top: 0; z-index: 200;
+      display: flex; align-items: center; gap: 12px;
+      padding: 9px 20px;
+      background: rgba(5,5,13,0.9);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 0 var(--amber-dim);
+    }
+
+    .topbar-brand {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      padding-right: 14px;
+      border-right: 1px solid var(--border-hi);
+    }
+    .topbar-title {
+      font-size: 12px; font-weight: 700; letter-spacing: 4px; color: var(--amber);
+    }
+    #ws-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    #ws-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    /* three-zone state bar */
+    .topbar-state {
+      flex: 1; display: flex; align-items: center; gap: 0;
+    }
+
+    .state-zone {
+      display: flex; align-items: center; gap: 5px; flex: 1;
+    }
+    .state-zone.center {
+      justify-content: center; flex: 0 0 auto; padding: 0 14px;
+      border-left: 1px solid var(--border-hi);
+      border-right: 1px solid var(--border-hi);
+    }
+    .state-zone.right { justify-content: flex-end; }
+
+    .chip {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 5px; padding: 3px 9px; min-width: 52px;
+    }
+    .chip .lbl { font-size: 7px; letter-spacing: 1.5px; color: var(--text3); font-weight: 700; }
+    .chip .val { font-family: var(--font-mono); font-size: 11px; color: var(--text); }
+    .chip .val.danger { color: var(--red); }
+
+    .chip.p1 { border-bottom: 2px solid var(--amber-dim); }
+    .chip.p2 { border-bottom: 2px solid var(--blue-dim); }
+
+    /* ══════════════ TAB BAR ══════════════ */
+    .tab-bar {
+      display: flex; gap: 0;
+      padding: 0 22px;
+      background: rgba(5,5,13,0.88);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      padding: 10px 22px; font-family: var(--font-ui);
+      font-size: 10px; font-weight: 700; letter-spacing: 3px;
+      color: var(--text3); background: none; border: none;
+      border-bottom: 2px solid transparent; cursor: pointer;
+      margin-bottom: -1px;
+      transition: color 0.18s, border-color 0.18s;
+    }
+    .tab-btn:hover { color: var(--text2); }
+    .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+    /* ══════════════ TAB CONTENT ══════════════ */
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ══════════════ LAYOUT ══════════════ */
+    .main { max-width: 980px; margin: 0 auto; padding: 24px 22px 80px; display: flex; flex-direction: column; gap: 28px; }
+
+    .sh { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+    .sh-label { font-size: 10px; font-weight: 700; letter-spacing: 4px; color: var(--amber); white-space: nowrap; }
+    .sh-line  { flex: 1; height: 1px; background: linear-gradient(90deg, var(--amber-dim) 0%, transparent 70%); }
+    .sh-label.blue   { color: var(--blue); }
+    .sh-line.blue    { background: linear-gradient(90deg, var(--blue-dim) 0%, transparent 70%); }
+    .sh-label.purple { color: var(--purple); }
+    .sh-line.purple  { background: linear-gradient(90deg, var(--purple-dim) 0%, transparent 70%); }
+
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .g2,.g3 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r2); padding: 14px 16px;
+    }
+    .card-lbl {
+      font-size: 9px; font-weight: 700; letter-spacing: 2.5px;
+      color: var(--text3); margin-bottom: 13px;
+    }
+
+    /* ══════════════ FORMS ══════════════ */
+    .row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+    .row:last-child { margin-bottom: 0; }
+    label { font-size: 10px; color: var(--text3); min-width: 44px; font-weight: 700; letter-spacing: 0.5px; }
+
+    input[type="text"], input[type="number"], input[type="password"] {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-family: var(--font-ui);
+      font-size: 13px; padding: 7px 10px; outline: none; transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--amber); }
+
+    /* ══════════════ BUTTONS ══════════════ */
+    button {
+      border: none; border-radius: 6px; cursor: pointer;
+      font-family: var(--font-ui); font-size: 12px; font-weight: 700; letter-spacing: 1px;
+      padding: 7px 12px; transition: opacity 0.15s, transform 0.1s; white-space: nowrap;
+    }
+    button:active { transform: scale(0.96); }
+    button:hover  { opacity: 0.85; }
+    .btn-amber  { background: var(--amber); color: #000; }
+    .btn-blue   { background: var(--blue);  color: #000; }
+    .btn-ghost  { background: var(--surface2); color: var(--text2); border: 1px solid var(--border-hi); }
+    .btn-danger { background: var(--red);   color: #000; }
+
+    /* ══════════════ FORMAT ══════════════ */
+    .fmt-row { display: flex; gap: 5px; flex: 1; }
+    .fmt-btn {
+      flex: 1; font-size: 11px; padding: 5px 0;
+      background: var(--surface2); color: var(--text3);
+      border: 1px solid var(--border-hi); border-radius: 5px;
+    }
+    .fmt-btn.active { background: var(--amber-glow); color: var(--amber); border-color: var(--amber-dim); }
+
+    /* ══════════════ HERO AUTOCOMPLETE ══════════════ */
+    .hero-wrap { position: relative; flex: 1; }
+    .hero-wrap input { width: 100%; padding-right: 28px; }
+    .hero-clear {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--text3); font-size: 13px;
+      cursor: pointer; padding: 0; line-height: 1; display: none;
+    }
+    .hero-clear.visible { display: block; }
+    .hero-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #10101e; border: 1px solid var(--amber-dim);
+      border-radius: 8px; z-index: 300; max-height: 220px; overflow-y: auto;
+      display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+    }
+    .hero-dropdown.open { display: block; }
+    .hero-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; cursor: pointer; gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s;
+    }
+    .hero-item:last-child { border-bottom: none; }
+    .hero-item:hover, .hero-item.focused { background: var(--amber-glow); }
+    .hero-name-text { font-size: 13px; color: var(--text); }
+    .hero-name-text mark { background: none; color: var(--amber); font-weight: 700; }
+    .hero-life-badge {
+      font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.06);
+      border-radius: 4px; padding: 2px 6px; color: var(--text3); white-space: nowrap; flex-shrink: 0;
+    }
+    .hero-empty { padding: 12px; text-align: center; color: var(--text3); font-size: 13px; }
+    .hero-dropdown::-webkit-scrollbar { width: 5px; }
+    .hero-dropdown::-webkit-scrollbar-track { background: transparent; }
+    .hero-dropdown::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+    /* ══════════════ LIFE ══════════════ */
+    .life-display {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 10px 0 12px;
+    }
+    .life-num {
+      font-family: var(--font-mono); font-size: 56px; font-weight: 400;
+      color: var(--text); line-height: 1; min-width: 82px;
+      text-align: center; transition: color 0.3s;
+    }
+    .life-num.low { color: var(--red); }
+    .adj-col { display: flex; flex-direction: column; gap: 5px; }
+    .adj-col button {
+      padding: 5px 10px; font-size: 11px;
+      background: var(--surface2); border: 1px solid var(--border-hi); color: var(--text2);
+    }
+    .adj-col.plus  button { color: var(--green); border-color: rgba(74,222,128,0.2); }
+    .adj-col.minus button { color: var(--red);   border-color: rgba(248,113,113,0.2); }
+    .adj-col.plus  button:hover { background: rgba(74,222,128,0.08); }
+    .adj-col.minus button:hover { background: rgba(248,113,113,0.08); }
+
+    .life-set-row { display: flex; gap: 6px; }
+    input.life-input { width: 64px; flex: unset; text-align: center; font-family: var(--font-mono); }
+
+    /* ══════════════ FIRST / DRAW ══════════════ */
+    .first-btns { display: flex; gap: 6px; }
+    .first-btns button {
+      flex: 1; padding: 8px; background: var(--surface2);
+      color: var(--text3); border: 1px solid var(--border-hi);
+    }
+    .first-btns button.active { background: var(--amber-glow); color: var(--amber); border-color: var(--amber-dim); }
+
+    .timer-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .timer-row button { flex: 1; min-width: 70px; }
+
+    .draw-btn {
+      width: 100%; padding: 16px;
+      font-size: 14px; letter-spacing: 4px; font-family: var(--font-ui); font-weight: 700;
+      background: linear-gradient(135deg, rgba(248,113,113,0.12), rgba(232,160,32,0.1));
+      color: var(--amber); border: 1px solid rgba(232,160,32,0.25); border-radius: var(--r);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .draw-btn:hover {
+      background: linear-gradient(135deg, rgba(248,113,113,0.2), rgba(232,160,32,0.18));
+      box-shadow: 0 0 22px rgba(232,160,32,0.1); border-color: rgba(232,160,32,0.5);
+    }
+    .draw-btn:active { transform: scale(0.98); }
+
+    /* ══════════════ TOURNAMENT STATUS ══════════════ */
+    .t-status-box {
+      margin-top: 10px; padding: 7px 11px;
+      background: var(--bg); border-radius: 6px; border: 1px solid var(--border);
+    }
+    .t-status-lbl { font-size: 8px; font-weight: 700; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 2px; }
+    #t-status { font-family: var(--font-mono); font-size: 11px; color: var(--text2); }
+
+    /* ══════════════ MATCH PICKER ══════════════ */
+    .mp-round-badge { font-family: var(--font-mono); font-size: 11px; color: var(--text2); }
+
+    .match-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 6px; cursor: pointer;
+      border: 1px solid transparent; transition: background 0.15s, border-color 0.15s;
+      margin-bottom: 4px; background: var(--bg);
+    }
+    .match-row:last-child { margin-bottom: 0; }
+    .match-row:hover  { background: var(--amber-glow); border-color: var(--amber-dim); }
+    .match-row.active { background: var(--amber-glow); border-color: var(--amber); }
+    .mp-table  { font-family: var(--font-mono); font-size: 10px; color: var(--text3); min-width: 26px; flex-shrink: 0; }
+    .mp-player { flex: 1; min-width: 0; }
+    .mp-pname  { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mp-phero  { font-size: 10px; color: var(--amber); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mp-vs     { font-size: 10px; color: var(--text3); font-weight: 700; letter-spacing: 1px; flex-shrink: 0; }
+    .mp-result { font-family: var(--font-mono); font-size: 10px; color: var(--text3); min-width: 34px; text-align: right; flex-shrink: 0; }
+    .mp-empty  { color: var(--text3); font-size: 12px; text-align: center; padding: 22px; }
+
+    /* ══════════════ WIDGET HUB ══════════════ */
+    .wh-group { margin-bottom: 20px; }
+    .wh-group:last-child { margin-bottom: 0; }
+    .wh-group-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 2.5px; color: var(--text3);
+      margin-bottom: 9px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    }
+    .wh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
+
+    .wt {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 12px 13px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .wt:hover { border-color: var(--border-hi); background: var(--surface2); }
+    .wt-name  { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .wt-url   { font-family: var(--font-mono); font-size: 10px; color: var(--text3); margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wt-actions { display: flex; gap: 5px; }
+
+    .wt-copy {
+      flex: 1; font-size: 10px; letter-spacing: 1.5px; padding: 5px 0;
+      background: var(--surface2); color: var(--text2); border: 1px solid var(--border-hi);
+      border-radius: 5px; cursor: pointer; font-family: var(--font-ui); font-weight: 700;
+      transition: all 0.2s;
+    }
+    .wt-copy:hover  { background: var(--amber-glow); color: var(--amber); border-color: var(--amber-dim); }
+    .wt-copy.copied { background: rgba(74,222,128,0.1); color: var(--green); border-color: rgba(74,222,128,0.3); }
+
+    .wt-open {
+      padding: 5px 9px; background: var(--surface2); color: var(--text3);
+      border: 1px solid var(--border-hi); border-radius: 5px; cursor: pointer;
+      text-decoration: none; display: flex; align-items: center; font-size: 13px;
+      transition: all 0.2s; line-height: 1;
+    }
+    .wt-open:hover { color: var(--blue); border-color: var(--blue-dim); background: var(--blue-glow); }
+  </style>
+</head>
+<body>
+
+  <!-- ══ TOPBAR ══════════════════════════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span id="ws-dot"></span>
+      <span class="topbar-title">STREAM ADMIN</span>
+    </div>
+
+    <div class="topbar-state">
+      <!-- Left player -->
+      <div class="state-zone left">
+        <div class="chip p1"><span class="lbl">NAME L</span><span class="val" id="s-nl">—</span></div>
+        <div class="chip p1"><span class="lbl">HERO L</span><span class="val" id="s-hl">—</span></div>
+        <div class="chip p1"><span class="lbl">LIFE L</span><span class="val" id="s-ll">—</span></div>
+      </div>
+
+      <!-- Center -->
+      <div class="state-zone center">
+        <div class="chip"><span class="lbl">ROUND</span><span class="val" id="s-round">—</span></div>
+        <div class="chip"><span class="lbl">TIMER</span><span class="val" id="s-timer">—</span></div>
+        <div class="chip"><span class="lbl">FIRST</span><span class="val" id="s-first">—</span></div>
+      </div>
+
+      <!-- Right player -->
+      <div class="state-zone right">
+        <div class="chip p2"><span class="lbl">LIFE R</span><span class="val" id="s-lr">—</span></div>
+        <div class="chip p2"><span class="lbl">HERO R</span><span class="val" id="s-hr">—</span></div>
+        <div class="chip p2"><span class="lbl">NAME R</span><span class="val" id="s-nr">—</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ TAB BAR ══════════════════════════════════════════════════════════════ -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="match"      onclick="switchTab('match')">MATCH</button>
+    <button class="tab-btn"        data-tab="tournament" onclick="switchTab('tournament')">TOURNAMENT</button>
+    <button class="tab-btn"        data-tab="widgets"    onclick="switchTab('widgets')">WIDGETS</button>
+  </nav>
+
+  <!-- ══ TAB: MATCH ══════════════════════════════════════════════════════════ -->
+  <div id="tab-match" class="tab-pane active">
+    <div class="main">
+
+      <section>
+        <div class="sh"><span class="sh-label">MATCH CONTROLS</span><div class="sh-line"></div></div>
+        <div class="g2">
+
+          <!-- Player L -->
+          <div class="card">
+            <div class="card-lbl" style="color:var(--amber)">Player 1 — Left</div>
+            <div class="row">
+              <label>NAME</label>
+              <input type="text" id="in-name-l" placeholder="Player name">
+              <button class="btn-amber" onclick="post('name1/'+enc(val('in-name-l')))">SET</button>
+            </div>
+            <div class="row">
+              <label>FORMAT</label>
+              <div class="fmt-row">
+                <button id="fmt-l-blitz" class="fmt-btn active" onclick="setFormat('l','blitz')">BLITZ</button>
+                <button id="fmt-l-cc"    class="fmt-btn"        onclick="setFormat('l','cc')">CC</button>
+              </div>
+            </div>
+            <div class="row">
+              <label>HERO</label>
+              <div class="hero-wrap" id="hw-l">
+                <input type="text" id="in-hero-l" placeholder="Search hero…" autocomplete="off">
+                <button class="hero-clear" id="clear-l" onclick="clearHero('l')">✕</button>
+                <div class="hero-dropdown" id="dd-l"></div>
+              </div>
+              <button class="btn-amber" onclick="post('hero1/'+enc(val('in-hero-l')))">SET</button>
+            </div>
+            <div class="life-display">
+              <div class="adj-col plus">
+                <button onclick="post('player1/'+(st.lifeL+5))">+5</button>
+                <button onclick="post('player1/'+(st.lifeL+1))">+1</button>
+              </div>
+              <div class="life-num" id="disp-ll">20</div>
+              <div class="adj-col minus">
+                <button onclick="post('player1/'+(st.lifeL-1))">−1</button>
+                <button onclick="post('player1/'+(st.lifeL-5))">−5</button>
+              </div>
+            </div>
+            <div class="life-set-row">
+              <input type="number" class="life-input" id="in-life-l" placeholder="HP">
+              <button class="btn-ghost" style="flex:1" onclick="post('player1/'+val('in-life-l'))">SET LIFE</button>
+            </div>
+          </div>
+
+          <!-- Player R -->
+          <div class="card">
+            <div class="card-lbl" style="color:var(--blue)">Player 2 — Right</div>
+            <div class="row">
+              <label>NAME</label>
+              <input type="text" id="in-name-r" placeholder="Player name">
+              <button class="btn-blue" onclick="post('name2/'+enc(val('in-name-r')))">SET</button>
+            </div>
+            <div class="row">
+              <label>FORMAT</label>
+              <div class="fmt-row">
+                <button id="fmt-r-blitz" class="fmt-btn active" onclick="setFormat('r','blitz')">BLITZ</button>
+                <button id="fmt-r-cc"    class="fmt-btn"        onclick="setFormat('r','cc')">CC</button>
+              </div>
+            </div>
+            <div class="row">
+              <label>HERO</label>
+              <div class="hero-wrap" id="hw-r">
+                <input type="text" id="in-hero-r" placeholder="Search hero…" autocomplete="off">
+                <button class="hero-clear" id="clear-r" onclick="clearHero('r')">✕</button>
+                <div class="hero-dropdown" id="dd-r"></div>
+              </div>
+              <button class="btn-blue" onclick="post('hero2/'+enc(val('in-hero-r')))">SET</button>
+            </div>
+            <div class="life-display">
+              <div class="adj-col plus">
+                <button onclick="post('player2/'+(st.lifeR+5))">+5</button>
+                <button onclick="post('player2/'+(st.lifeR+1))">+1</button>
+              </div>
+              <div class="life-num" id="disp-lr">20</div>
+              <div class="adj-col minus">
+                <button onclick="post('player2/'+(st.lifeR-1))">−1</button>
+                <button onclick="post('player2/'+(st.lifeR-5))">−5</button>
+              </div>
+            </div>
+            <div class="life-set-row">
+              <input type="number" class="life-input" id="in-life-r" placeholder="HP">
+              <button class="btn-ghost" style="flex:1" onclick="post('player2/'+val('in-life-r'))">SET LIFE</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Round + Timer + Draw -->
+        <div class="g3" style="margin-top:12px">
+          <div class="card">
+            <div class="card-lbl">Round &amp; First</div>
+            <div class="row">
+              <label>ROUND</label>
+              <input type="text" id="in-round" placeholder="Round 1">
+              <button class="btn-amber" onclick="post('round/'+enc(val('in-round')))">SET</button>
+            </div>
+            <div class="first-btns" style="margin-top:6px">
+              <button id="btn-f1" onclick="post('first/1')">PLAYER 1</button>
+              <button id="btn-f2" onclick="post('first/2')">PLAYER 2</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-lbl">Timer</div>
+            <div class="timer-row">
+              <button class="btn-amber" onclick="post('timer/start/blitz')">BLITZ 35m</button>
+              <button class="btn-amber" onclick="post('timer/start/cc')">CC 55m</button>
+            </div>
+            <div class="timer-row">
+              <button class="btn-ghost" onclick="post('timer/pause')">PAUSE</button>
+              <button class="btn-ghost" onclick="post('timer/resume')">RESUME</button>
+              <button class="btn-danger" onclick="post('timer/stop')">STOP</button>
+            </div>
+            <div class="row" style="margin-top:2px">
+              <input type="number" id="in-minutes" placeholder="min" min="1" style="max-width:72px">
+              <button class="btn-ghost" style="flex:1" onclick="post('timer/start/minutes/'+val('in-minutes'))">CUSTOM</button>
+              <button class="btn-ghost" onclick="post('timer/untimed')">∞</button>
+            </div>
+          </div>
+
+          <div class="card" style="display:flex;flex-direction:column;gap:10px">
+            <div class="card-lbl">Trigger</div>
+            <button class="draw-btn" onclick="post('trigger/draw')">⚡ DRAW</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Match Picker -->
+      <section>
+        <div class="sh">
+          <span class="sh-label">MATCH PICKER</span>
+          <span class="mp-round-badge" id="mp-round">—</span>
+          <div class="sh-line"></div>
+        </div>
+        <div class="card">
+          <div id="match-list"><div class="mp-empty">Fetch tournament data to see current round matches.</div></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ══ TAB: TOURNAMENT ════════════════════════════════════════════════════ -->
+  <div id="tab-tournament" class="tab-pane">
+    <div class="main">
+      <section>
+        <div class="sh"><span class="sh-label blue">TOURNAMENT SETUP</span><div class="sh-line blue"></div></div>
+        <div class="g2">
+
+          <div class="card">
+            <div class="card-lbl">Connection</div>
+            <div class="row">
+              <label>ID</label>
+              <input type="text" id="t-id" placeholder="Tournament ID">
+              <button class="btn-blue" onclick="tSetId()">SET</button>
+            </div>
+            <div class="row">
+              <label>USER</label>
+              <input type="text" id="t-user" placeholder="GEM username" autocomplete="username">
+            </div>
+            <div class="row">
+              <label>PASS</label>
+              <input type="password" id="t-pass" placeholder="password" autocomplete="current-password">
+              <button class="btn-blue" onclick="tLogin()">LOGIN</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-lbl">Data</div>
+            <div class="timer-row">
+              <button class="btn-ghost" onclick="tFetchHeroes()">LOAD HEROES</button>
+              <button class="btn-blue"  onclick="tFetchAll()">FETCH NOW</button>
+            </div>
+            <div class="row" style="margin-top:2px">
+              <label>AUTO</label>
+              <input type="number" id="t-interval" placeholder="seconds" min="10" value="60">
+              <button class="btn-blue"  onclick="tStartRefresh()">START</button>
+              <button class="btn-ghost" onclick="tStopRefresh()">STOP</button>
+            </div>
+            <div class="t-status-box">
+              <div class="t-status-lbl">STATUS</div>
+              <div id="t-status">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ══ TAB: WIDGETS ══════════════════════════════════════════════════════ -->
+  <div id="tab-widgets" class="tab-pane">
+    <div class="main">
+      <section>
+        <div class="sh"><span class="sh-label purple">WIDGET HUB</span><div class="sh-line purple"></div></div>
+        <div id="widget-hub"></div>
+      </section>
+    </div>
+  </div>
+
+<script>
+// ── Hero data ─────────────────────────────────────────────────────────────────
+const HEROES = {
+  blitz: [
+    {name:'Arakni',life:20},{name:'Arakni, Solitary Confinement',life:19},{name:'Arakni, Web of Deceit',life:20},
+    {name:'Aurora',life:20},{name:'Aurora, Emissary of Lightning',life:20},
+    {name:'Azalea',life:20},{name:'Benji, the Piercing Wind',life:17},{name:'Betsy',life:20},
+    {name:'Blaze, Firemind',life:17},{name:'Boltyn',life:20},
+    {name:'Bravo',life:20},{name:'Bravo, Flattering Showman',life:20},{name:'Brevant, Civic Protector',life:20},
+    {name:'Briar',life:20},{name:'Chane',life:20},{name:'Cindra',life:20},
+    {name:'Dash',life:20},{name:'Dash, Database',life:18},{name:'Data Doll MKII',life:20},
+    {name:'Dorinthea',life:20},{name:'Dorinthea, Quicksilver Prodigy',life:20},{name:'Dromai',life:20},
+    {name:'Emperor, Dracai of Aesir',life:15},{name:'Enigma',life:20},{name:'Enigma, New Moon',life:20},
+    {name:'Fai',life:20},{name:'Fang',life:20},{name:'Florian',life:20},
+    {name:'Genis Wotchuneed',life:20},{name:'Gravy Bones',life:20},{name:'Ira, Crimson Haze',life:20},
+    {name:'Iyslander',life:18},{name:'Kano',life:15},
+    {name:'Kassai',life:20},{name:'Kassai, Cintari Sellsword',life:20},{name:'Katsu',life:20},
+    {name:'Kavdaen, Trader of Skins',life:20},
+    {name:'Kayo',life:20},{name:'Kayo, Berserker Runt',life:19},{name:'Kayo, Strong-arm',life:20},
+    {name:'Levia',life:20},{name:'Lexi',life:20},{name:'Lyath Goldmane',life:20},
+    {name:'Marlynn',life:20},{name:'Maxx Nitro',life:20},{name:'Melody, Sing-along',life:20},
+    {name:'Nuu',life:20},{name:'Oldhim',life:20},{name:'Olympia',life:20},
+    {name:'Oscilio',life:18},{name:'Oscilio, Scion of the Third Age',life:19},
+    {name:'Pleiades',life:20},{name:'Prism',life:20},{name:'Prism, Advent of Thrones',life:16},
+    {name:'Professor Teklovossen',life:20},{name:'Puffin',life:20},{name:'Rhinar',life:20},
+    {name:'Riptide',life:19},{name:'Scurv, Stowaway',life:20},{name:'Shiyana, Diamond Gemini',life:20},
+    {name:'Teklovossen',life:20},{name:'Terra',life:20},{name:'Tuffnut',life:20},
+    {name:'Uzuri',life:20},{name:'Valda Brightaxe',life:21},{name:'Verdance',life:20},
+    {name:'Victor Goldmane',life:20},{name:'Viserai',life:20},{name:'Vynnset',life:20},
+    {name:'Yoji, Royal Protector',life:22},{name:'Zen',life:20},{name:'Zyggy',life:20},
+  ].sort((a,b) => a.name.localeCompare(b.name)),
+
+  cc: [
+    {name:'Arakni, 5L!p3d 7hRu 73h cR4X',life:38},{name:'Arakni, Huntsman',life:40},{name:'Arakni, Marionette',life:40},
+    {name:'Aurora, Legacy of Tempest',life:40},{name:'Aurora, Shooting Star',life:40},
+    {name:'Azalea, Ace in the Hole',life:40},{name:'Betsy, Skin in the Game',life:40},
+    {name:'Bravo, Showstopper',life:40},{name:'Bravo, Star of the Show',life:40},
+    {name:'Briar, Warden of Thorns',life:40},{name:'Chane, Bound by Shadow',life:40},
+    {name:'Cindra, Dracai of Retribution',life:40},
+    {name:'Dash IO',life:36},{name:'Dash, Inventor Extraordinaire',life:40},
+    {name:'Dorinthea Ironsong',life:40},{name:'Dromai, Ash Artist',life:40},
+    {name:'Enigma, Ledger of Ancestry',life:40},{name:'Fai, Rising Rebellion',life:40},
+    {name:'Fang, Dracai of Blades',life:40},{name:'Florian, Rotwood Harbinger',life:40},
+    {name:'Gravy Bones, Shipwrecked Looter',life:40},{name:'Hala, Bladesaint of the Vow',life:40},
+    {name:'Ira, Scarlet Revenger',life:40},{name:'Iyslander, Stormbind',life:36},
+    {name:'Jarl Vetreiđi',life:40},{name:'Kano, Dracai of Aether',life:30},
+    {name:'Kassai of the Golden Sand',life:40},{name:'Katsu, the Wanderer',life:40},
+    {name:'Kayo, Armed and Dangerous',life:40},{name:'Kayo, Underhanded Cheat',life:40},
+    {name:'Levia, Shadowborn Abomination',life:40},{name:'Lexi, Livewire',life:40},
+    {name:'Lyath Goldmane, Vile Savant',life:40},{name:'Marlynn, Treasure Hunter',life:40},
+    {name:'Maxx The Hype Nitro',life:40},{name:'Nuu, Alluring Desire',life:40},
+    {name:'Oldhim, Grandfather of Eternity',life:40},{name:'Olympia, Prized Fighter',life:40},
+    {name:'Oscilio, Constella Intelligence',life:36},{name:'Oscilio, Forked Continuum',life:38},
+    {name:'Pleiades, Superstar',life:40},
+    {name:'Prism, Awakener of Sol',life:32},{name:'Prism, Sculptor of Arc Light',life:40},
+    {name:'Puffin, Hightail',life:40},{name:'Rhinar, Reckless Rampage',life:40},
+    {name:'Riptide, Lurker of the Deep',life:38},{name:'Ser Boltyn, Breaker of Dawn',life:40},
+    {name:'Teklovossen, Esteemed Magnate',life:40},{name:'Tuffnut, Bumbling Hulkster',life:40},
+    {name:'Uzuri, Switchblade',life:40},{name:'Valda, Seismic Impact',life:40},
+    {name:'Verdance, Thorn of the Rose',life:40},{name:'Victor Goldmane, High and Mighty',life:40},
+    {name:'Viserai, Rune Blood',life:40},{name:'Vynnset, Iron Maiden',life:40},
+    {name:'Zen, Tamer of Purpose',life:40},{name:'Zyggy Starlight',life:40},
+  ].sort((a,b) => a.name.localeCompare(b.name)),
+};
+
+// ── State & helpers ───────────────────────────────────────────────────────────
+let st = { lifeL: 20, lifeR: 20, first: 0 };
+const playerFormat = { l: 'blitz', r: 'blitz' };
+
+function val(id)    { return document.getElementById(id).value.trim(); }
+function enc(v)     { return encodeURIComponent(v); }
+function get(id)    { return document.getElementById(id); }
+function setText(id, v) { get(id).textContent = v; }
+function post(path) { fetch('http://localhost:8080/' + path, { method: 'POST' }).catch(() => {}); }
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  get('tab-' + name).classList.add('active');
+  document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+}
+
+// ── Format selector ───────────────────────────────────────────────────────────
+function setFormat(side, fmt) {
+  playerFormat[side] = fmt;
+  get(`fmt-${side}-blitz`).className = fmt === 'blitz' ? 'fmt-btn active' : 'fmt-btn';
+  get(`fmt-${side}-cc`).className    = fmt === 'cc'    ? 'fmt-btn active' : 'fmt-btn';
+  get(`in-hero-${side}`).value = '';
+  get(`clear-${side}`).className = 'hero-clear';
+  renderDropdown(side, '');
+}
+
+// ── Hero autocomplete ─────────────────────────────────────────────────────────
+let focusedIndex = { l: -1, r: -1 };
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function highlight(text, q) {
+  if (!q) return escHtml(text);
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i === -1) return escHtml(text);
+  return escHtml(text.slice(0,i)) + '<mark>' + escHtml(text.slice(i, i+q.length)) + '</mark>' + escHtml(text.slice(i+q.length));
+}
+
+function renderDropdown(side, query) {
+  const dd = get(`dd-${side}`);
+  const q  = query.trim().toLowerCase();
+  const filtered = q ? HEROES[playerFormat[side]].filter(h => h.name.toLowerCase().includes(q)) : HEROES[playerFormat[side]];
+  focusedIndex[side] = -1;
+  dd.innerHTML = filtered.length === 0
+    ? '<div class="hero-empty">No heroes found</div>'
+    : filtered.map((h,i) => `<div class="hero-item" data-idx="${i}" data-name="${escHtml(h.name)}"
+        onmousedown="selectHero('${side}','${escHtml(h.name)}')" onmouseover="focusItem('${side}',${i})">
+        <span class="hero-name-text">${highlight(h.name, q)}</span>
+        <span class="hero-life-badge">♥ ${h.life}</span>
+      </div>`).join('');
+  dd.className = 'hero-dropdown open';
+}
+
+function focusItem(side, idx) {
+  get(`dd-${side}`).querySelectorAll('.hero-item').forEach((el, i) => {
+    el.className = 'hero-item' + (i === idx ? ' focused' : '');
+  });
+  focusedIndex[side] = idx;
+}
+
+function selectHero(side, name) {
+  get(`in-hero-${side}`).value = name;
+  get(`clear-${side}`).className = 'hero-clear visible';
+  get(`dd-${side}`).className = 'hero-dropdown';
+}
+
+function clearHero(side) {
+  get(`in-hero-${side}`).value = '';
+  get(`clear-${side}`).className = 'hero-clear';
+  renderDropdown(side, '');
+  get(`in-hero-${side}`).focus();
+}
+
+function initHeroInput(side) {
+  const input = get(`in-hero-${side}`);
+  const dd    = get(`dd-${side}`);
+  input.addEventListener('input',  () => { get(`clear-${side}`).className = input.value ? 'hero-clear visible' : 'hero-clear'; renderDropdown(side, input.value); });
+  input.addEventListener('focus',  () => renderDropdown(side, input.value));
+  input.addEventListener('blur',   () => setTimeout(() => { dd.className = 'hero-dropdown'; }, 150));
+  input.addEventListener('keydown', e => {
+    const items = dd.querySelectorAll('.hero-item');
+    let fi = focusedIndex[side];
+    if (e.key === 'ArrowDown') { e.preventDefault(); fi = Math.min(fi+1, items.length-1); focusItem(side, fi); items[fi]?.scrollIntoView({block:'nearest'}); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); fi = Math.max(fi-1, 0); focusItem(side, fi); items[fi]?.scrollIntoView({block:'nearest'}); }
+    else if (e.key === 'Enter' && fi >= 0 && items[fi]) selectHero(side, items[fi].dataset.name);
+    else if (e.key === 'Escape') dd.className = 'hero-dropdown';
+  });
+}
+
+// ── Game state WebSocket ──────────────────────────────────────────────────────
+function connect() {
+  const ws = new WebSocket('ws://localhost:8080/ws');
+  ws.onopen    = () => get('ws-dot').className = 'on';
+  ws.onmessage = e  => { st = JSON.parse(e.data); updateUI(st); };
+  ws.onclose   = () => { get('ws-dot').className = ''; setTimeout(connect, 3000); };
+}
+
+function updateUI(s) {
+  const ll = get('s-ll'), lr = get('s-lr');
+  ll.textContent = s.lifeL; ll.className = 'val' + (s.lifeL <= 5 ? ' danger' : '');
+  lr.textContent = s.lifeR; lr.className = 'val' + (s.lifeR <= 5 ? ' danger' : '');
+  setText('s-hl', s.heroL   || '—');
+  setText('s-hr', s.heroR   || '—');
+  setText('s-nl', s.playerL || '—');
+  setText('s-nr', s.playerR || '—');
+  setText('s-round', s.round || '—');
+  setText('s-timer', s.timer || '—');
+  setText('s-first', s.first === 1 ? 'P1' : s.first === 2 ? 'P2' : '—');
+
+  const dl = get('disp-ll'), dr = get('disp-lr');
+  dl.textContent = s.lifeL; dl.className = 'life-num' + (s.lifeL <= 5 ? ' low' : '');
+  dr.textContent = s.lifeR; dr.className = 'life-num' + (s.lifeR <= 5 ? ' low' : '');
+
+  get('btn-f1').className = s.first === 1 ? 'active' : '';
+  get('btn-f2').className = s.first === 2 ? 'active' : '';
+}
+
+// ── Enter on inputs ───────────────────────────────────────────────────────────
+document.querySelectorAll('input[type="text"]:not([id^="in-hero"]), input[type="number"], input[type="password"]')
+  .forEach(el => el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') el.closest('.row')?.querySelector('button:last-child')?.click();
+  }));
+
+// ── Tournament ────────────────────────────────────────────────────────────────
+function tStatus(msg) { const el = get('t-status'); if (el) el.textContent = msg || '—'; }
+
+function tSetId() {
+  const id = val('t-id'); if (!id) return;
+  fetch('http://localhost:8080/tournament/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) })
+    .then(r => r.json()).then(d => tStatus('ID set: ' + d.tournamentId)).catch(() => tStatus('Error'));
+}
+function tLogin() {
+  tStatus('Logging in…');
+  fetch('http://localhost:8080/tournament/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:val('t-user'), password:get('t-pass').value}) })
+    .then(r => r.json()).then(d => tStatus(d.status)).catch(() => tStatus('Error'));
+}
+function tFetchHeroes() {
+  tStatus('Loading heroes…');
+  fetch('http://localhost:8080/tournament/fetch/heroes', {method:'POST'}).then(r => r.json()).then(d => tStatus(d.status)).catch(() => tStatus('Error'));
+}
+function tFetchAll() {
+  tStatus('Fetching…');
+  fetch('http://localhost:8080/tournament/fetch/all', {method:'POST'}).then(r => r.json()).then(d => tStatus(d.status)).catch(() => tStatus('Error'));
+}
+function tStartRefresh() {
+  const secs = parseInt(get('t-interval').value) || 60;
+  fetch('http://localhost:8080/tournament/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({interval:secs}) })
+    .then(() => tStatus('Auto-refresh: every ' + secs + 's')).catch(() => tStatus('Error'));
+}
+function tStopRefresh() {
+  fetch('http://localhost:8080/tournament/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({interval:0}) })
+    .then(() => tStatus('Auto-refresh stopped')).catch(() => tStatus('Error'));
+}
+setInterval(() => {
+  fetch('http://localhost:8080/tournament/status').then(r => r.json()).then(d => tStatus(d.status)).catch(() => {});
+}, 10000);
+
+// ── Match picker ──────────────────────────────────────────────────────────────
+let tData = null;
+let selectedMatchIdx = -1;
+
+function connectTournament() {
+  const ws = new WebSocket('ws://localhost:8080/ws/tournament');
+  ws.onmessage = e => { tData = JSON.parse(e.data); renderMatchPicker(); };
+  ws.onclose   = () => setTimeout(connectTournament, 3000);
+}
+
+function renderMatchPicker() {
+  if (!tData) return;
+  const pairings = tData.pairings || [];
+  get('mp-round').textContent = tData.round ? 'ROUND ' + tData.round : '—';
+  const list = get('match-list');
+  if (!pairings.length) {
+    list.innerHTML = '<div class="mp-empty">No pairings yet — fetch tournament data first.</div>';
+    return;
+  }
+  list.innerHTML = pairings.map((p, i) => `
+    <div class="match-row${selectedMatchIdx === i ? ' active' : ''}" onclick="loadMatch(${i})">
+      <span class="mp-table">T${p.table}</span>
+      <div class="mp-player">
+        <div class="mp-pname">${escHtml(p.p1Name || '—')}</div>
+        ${p.p1Hero ? `<div class="mp-phero">${escHtml(p.p1Hero)}</div>` : ''}
+      </div>
+      <span class="mp-vs">vs</span>
+      <div class="mp-player" style="text-align:right">
+        <div class="mp-pname">${escHtml(p.p2Name || '—')}</div>
+        ${p.p2Hero ? `<div class="mp-phero">${escHtml(p.p2Hero)}</div>` : ''}
+      </div>
+      ${p.result ? `<span class="mp-result">${escHtml(p.result)}</span>` : ''}
+    </div>`).join('');
+}
+
+function findHero(heroName) {
+  if (!heroName) return null;
+  const q = heroName.toLowerCase();
+  for (const fmt of ['blitz', 'cc']) {
+    const h = HEROES[fmt].find(h => h.name.toLowerCase() === q);
+    if (h) return { life: h.life, format: fmt };
+  }
+  return null;
+}
+
+function loadMatch(idx) {
+  if (!tData?.pairings) return;
+  const p = tData.pairings[idx];
+  if (!p) return;
+  selectedMatchIdx = idx;
+
+  const h1 = findHero(p.p1Hero);
+  const h2 = findHero(p.p2Hero);
+
+  // setFormat must come first — it clears the hero input internally
+  if (h1) setFormat('l', h1.format);
+  if (h2) setFormat('r', h2.format);
+
+  // Fill name + hero fields
+  get('in-name-l').value = p.p1Name || '';
+  get('in-hero-l').value = p.p1Hero || '';
+  get('clear-l').className = p.p1Hero ? 'hero-clear visible' : 'hero-clear';
+  get('dd-l').className = 'hero-dropdown';
+
+  get('in-name-r').value = p.p2Name || '';
+  get('in-hero-r').value = p.p2Hero || '';
+  get('clear-r').className = p.p2Hero ? 'hero-clear visible' : 'hero-clear';
+  get('dd-r').className = 'hero-dropdown';
+
+  const roundLabel = tData.round ? 'Round ' + tData.round : '';
+  if (roundLabel) get('in-round').value = roundLabel;
+
+  // Post names, heroes, round
+  post('name1/' + enc(p.p1Name || ''));
+  post('name2/' + enc(p.p2Name || ''));
+  if (p.p1Hero) post('hero1/' + enc(p.p1Hero));
+  if (p.p2Hero) post('hero2/' + enc(p.p2Hero));
+  if (roundLabel) post('round/' + enc(roundLabel));
+
+  // Life reset with confirmation
+  const life1 = h1 ? h1.life : 20;
+  const life2 = h2 ? h2.life : 20;
+
+  const confirmMsg =
+    `Reset life points for this match?\n\n` +
+    `${p.p1Name || 'Player 1'}: ${life1} HP\n` +
+    `${p.p2Name || 'Player 2'}: ${life2} HP`;
+
+  if (confirm(confirmMsg)) {
+    post('player1/' + life1);
+    post('player2/' + life2);
+  }
+
+  renderMatchPicker();
+}
+
+// ── Widget hub ────────────────────────────────────────────────────────────────
+const WIDGETS = [
+  { group:'GAMEPLAY',   name:'Full Overlay',          path:'/overlay.html' },
+  { group:'GAMEPLAY',   name:'Life — Left',            path:'/widget-life-l.html' },
+  { group:'GAMEPLAY',   name:'Life — Right',           path:'/widget-life-r.html' },
+  { group:'GAMEPLAY',   name:'Name — Left',            path:'/widget-name-l.html' },
+  { group:'GAMEPLAY',   name:'Name — Right',           path:'/widget-name-r.html' },
+  { group:'GAMEPLAY',   name:'Hero — Left',            path:'/widget-hero-l.html' },
+  { group:'GAMEPLAY',   name:'Hero — Right',           path:'/widget-hero-r.html' },
+  { group:'GAMEPLAY',   name:'Round',                  path:'/widget-round.html' },
+  { group:'GAMEPLAY',   name:'Timer',                  path:'/widget-timer.html' },
+  { group:'GAMEPLAY',   name:'Draw Trigger',           path:'/widget-draw.html' },
+  { group:'TOURNAMENT', name:'Matches',                path:'/widget-matches.html' },
+  { group:'TOURNAMENT', name:'Standings',              path:'/widget-standings.html' },
+  { group:'TOURNAMENT', name:'Top 8 Bracket',          path:'/widget-top8.html' },
+  { group:'TOURNAMENT', name:'Top 4 Bracket',          path:'/widget-top4.html' },
+  { group:'TOURNAMENT', name:'Metagame %',             path:'/widget-meta.html' },
+  { group:'TOURNAMENT', name:'Metagame Chart',         path:'/widget-meta-chart.html' },
+  { group:'TOURNAMENT', name:'Win Rate',               path:'/widget-winrate.html' },
+  { group:'PROFILES',   name:'Player Profile — Left',  path:'/widget-player-l.html' },
+  { group:'PROFILES',   name:'Player Profile — Right', path:'/widget-player-r.html' },
+];
+
+function copyWidget(path, btn) {
+  const url = `${location.origin}${path}`;
+  const done = () => {
+    btn.textContent = '✓ COPIADO'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'COPIAR'; btn.classList.remove('copied'); }, 2200);
+  };
+  navigator.clipboard?.writeText(url).then(done).catch(() => {
+    const ta = Object.assign(document.createElement('textarea'), {value: url});
+    Object.assign(ta.style, {position:'fixed', opacity:'0'});
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); done();
+  });
+}
+
+function renderWidgetHub() {
+  const groups = [...new Set(WIDGETS.map(w => w.group))];
+  get('widget-hub').innerHTML = groups.map(g => `
+    <div class="wh-group">
+      <div class="wh-group-label">${g}</div>
+      <div class="wh-grid">
+        ${WIDGETS.filter(w => w.group === g).map(w => `
+          <div class="wt">
+            <div class="wt-name">${w.name}</div>
+            <div class="wt-url" title="${location.origin}${w.path}">${w.path.slice(1)}</div>
+            <div class="wt-actions">
+              <button class="wt-copy" onclick="copyWidget('${w.path}',this)">COPIAR</button>
+              <a class="wt-open" href="${w.path}" target="_blank">↗</a>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+// ── Restore saved config ──────────────────────────────────────────────────────
+function loadSavedConfig() {
+  fetch('http://localhost:8080/tournament/saved-config')
+    .then(r => r.json())
+    .then(d => {
+      if (d.tournamentId) get('t-id').value   = d.tournamentId;
+      if (d.username)     get('t-user').value = d.username;
+      if (d.password)     get('t-pass').value = d.password;
+      if (d.playerL)      get('in-name-l').value = d.playerL;
+      if (d.playerR)      get('in-name-r').value = d.playerR;
+      if (d.round)        get('in-round').value  = d.round;
+      if (d.heroL) {
+        get('in-hero-l').value = d.heroL;
+        get('clear-l').className = 'hero-clear visible';
+      }
+      if (d.heroR) {
+        get('in-hero-r').value = d.heroR;
+        get('clear-r').className = 'hero-clear visible';
+      }
+    })
+    .catch(() => {});
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+initHeroInput('l');
+initHeroInput('r');
+connect();
+connectTournament();
+renderWidgetHub();
+loadSavedConfig();
+</script>
+</body>
+</html>

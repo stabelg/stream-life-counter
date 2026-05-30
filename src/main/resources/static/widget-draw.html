@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { background: transparent; margin: 0; overflow: hidden; }
+    #v {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 96px;
+      font-weight: 900;
+      color: #ffffff;
+      white-space: nowrap;
+      letter-spacing: 12px;
+      text-shadow: 0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(255,255,255,0.4);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #v.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="v">DRAW</div>
+  <script>
+    let lastTrigger = null;
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws');
+      ws.onmessage = e => {
+        const s = JSON.parse(e.data);
+        if (lastTrigger !== null && s.drawTrigger !== lastTrigger) {
+          const el = document.getElementById('v');
+          el.classList.add('show');
+          setTimeout(() => el.classList.remove('show'), 2500);
+        }
+        lastTrigger = s.drawTrigger;
+      };
+      ws.onclose = () => setTimeout(connect, 3000);
+    }
+    connect();
+  </script>
+</body>
+</html>

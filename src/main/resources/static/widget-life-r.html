@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { background: transparent; margin: 0; overflow: hidden; }
+    #v {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 72px;
+      font-weight: 900;
+      color: #ffffff;
+      white-space: nowrap;
+      text-shadow: 0 0 20px rgba(255,255,255,0.2);
+      transition: color 0.4s;
+    }
+    #v.danger { color: #ff3b3b; text-shadow: 0 0 18px rgba(255,59,59,0.5); }
+  </style>
+</head>
+<body>
+  <div id="v">20</div>
+  <script>
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws');
+      ws.onmessage = e => {
+        const s = JSON.parse(e.data);
+        const el = document.getElementById('v');
+        el.textContent = s.lifeR;
+        el.className = s.lifeR <= 5 ? 'danger' : '';
+      };
+      ws.onclose = () => setTimeout(connect, 3000);
+    }
+    connect();
+  </script>
+</body>
+</html>

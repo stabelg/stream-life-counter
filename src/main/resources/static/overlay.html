@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    .bar {
+      display: flex;
+      align-items: stretch;
+      width: 1920px;
+      height: 110px;
+      background: linear-gradient(180deg, rgba(10,10,10,0.92) 0%, rgba(0,0,0,0.88) 100%);
+      border-top: 2px solid rgba(255,255,255,0.08);
+    }
+
+    /* ── Player panels ── */
+    .player {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .player--right {
+      flex-direction: row-reverse;
+    }
+
+    .life {
+      font-size: 62px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1;
+      min-width: 74px;
+      text-align: center;
+      text-shadow: 0 0 20px rgba(255,255,255,0.2);
+      transition: color 0.4s;
+    }
+
+    .life.danger { color: #ff3b3b; text-shadow: 0 0 18px rgba(255,59,59,0.5); }
+
+    .player-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .player--right .player-info { align-items: flex-end; }
+
+    .player-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hero-name {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 0.8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .first-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ffd700;
+      box-shadow: 0 0 8px #ffd700;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .first-dot.visible { opacity: 1; }
+
+    /* ── Center panel ── */
+    .center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 32px;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .round {
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+    }
+
+    .timer {
+      font-size: 42px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 3px;
+      font-variant-numeric: tabular-nums;
+      min-width: 130px;
+      text-align: center;
+      transition: color 0.4s;
+    }
+
+    .timer.urgent {
+      color: #ff3b3b;
+      animation: blink 1s step-start infinite;
+    }
+
+    .timer.hidden { visibility: hidden; }
+
+    /* ── Draw overlay ── */
+    .draw-flash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .draw-flash.show { opacity: 1; }
+
+    .draw-text {
+      font-size: 96px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: 12px;
+      text-shadow:
+        0 0 40px rgba(255,255,255,0.8),
+        0 0 80px rgba(255,255,255,0.4);
+    }
+
+    @keyframes blink {
+      50% { opacity: 0.35; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bar">
+    <!-- Player 1 (left) -->
+    <div class="player player--left">
+      <div class="first-dot" id="dot-l"></div>
+      <div class="life" id="life-l">20</div>
+      <div class="player-info">
+        <div class="player-name" id="name-l">PLAYER 1</div>
+        <div class="hero-name" id="hero-l"></div>
+      </div>
+    </div>
+
+    <!-- Center -->
+    <div class="center">
+      <div class="round" id="round">ROUND 1</div>
+      <div class="timer hidden" id="timer">—</div>
+    </div>
+
+    <!-- Player 2 (right) -->
+    <div class="player player--right">
+      <div class="first-dot" id="dot-r"></div>
+      <div class="life" id="life-r">20</div>
+      <div class="player-info">
+        <div class="player-name" id="name-r">PLAYER 2</div>
+        <div class="hero-name" id="hero-r"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="draw-flash" id="draw-flash">
+    <span class="draw-text">DRAW</span>
+  </div>
+
+  <script>
+    let lastDrawTrigger = null;
+
+    function applyState(s) {
+      setText('life-l', s.lifeL);
+      setText('life-r', s.lifeR);
+      setText('name-l', s.playerL);
+      setText('name-r', s.playerR);
+      setText('hero-l', s.heroL);
+      setText('hero-r', s.heroR);
+      setText('round',  s.round);
+
+      setClass('life-l', 'life', s.lifeL <= 5 ? 'danger' : '');
+      setClass('life-r', 'life', s.lifeR <= 5 ? 'danger' : '');
+
+      const timerEl = document.getElementById('timer');
+      if (!s.timer || s.timer === '00:00') {
+        timerEl.className = 'timer hidden';
+      } else {
+        timerEl.textContent = s.timer;
+        const urgent = isUrgent(s.timer);
+        timerEl.className = 'timer' + (urgent ? ' urgent' : '');
+      }
+
+      // first-player dots
+      document.getElementById('dot-l').className = 'first-dot' + (s.first == 1 ? ' visible' : '');
+      document.getElementById('dot-r').className = 'first-dot' + (s.first == 2 ? ' visible' : '');
+
+      // draw trigger
+      if (lastDrawTrigger !== null && s.drawTrigger !== lastDrawTrigger) {
+        flashDraw();
+      }
+      lastDrawTrigger = s.drawTrigger;
+    }
+
+    function setText(id, val) {
+      document.getElementById(id).textContent = val ?? '';
+    }
+
+    function setClass(id, base, extra) {
+      document.getElementById(id).className = base + (extra ? ' ' + extra : '');
+    }
+
+    function isUrgent(timer) {
+      const parts = timer.split(':');
+      if (parts.length < 2) return false;
+      const mins = parseInt(parts[parts.length - 2]) || 0;
+      const secs = parseInt(parts[parts.length - 1]) || 0;
+      return mins * 60 + secs <= 300;
+    }
+
+    function flashDraw() {
+      const el = document.getElementById('draw-flash');
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    function connect() {
+      const ws = new WebSocket('ws://localhost:8080/ws');
+
+      ws.onopen    = () => console.log('[overlay] connected');
+      ws.onmessage = (e) => applyState(JSON.parse(e.data));
+      ws.onclose   = () => {
+        console.log('[overlay] disconnected — retrying in 3s');
+        setTimeout(connect, 3000);
+      };
+    }
+
+    connect();
+  </script>
+</body>
+</html>
