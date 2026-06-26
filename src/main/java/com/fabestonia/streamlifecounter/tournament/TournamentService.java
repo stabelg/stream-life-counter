@@ -143,13 +143,41 @@ public class TournamentService {
         String id = state.getTournamentId();
         if (id.isEmpty()) return;
         try {
-            String csv = get("/gem/" + id + "/coverage/standings");
-            parseStandings(csv);
+            // The overall standings (/coverage/standings) stay empty while the
+            // tournament is in progress; each finished round has its own at
+            // /coverage/standings/{runId}. Fall back to the most recent round.
+            List<TournamentState.Standing> standings = parseStandings(get("/gem/" + id + "/coverage/standings"));
+            if (standings.isEmpty()) {
+                for (String path : roundStandingsPaths(id)) {
+                    standings = parseStandings(get(path));
+                    if (!standings.isEmpty()) break;
+                }
+            }
+            state.setStandings(standings);
             broadcast();
         } catch (Exception e) {
             state.setStatus("Standings error: " + e.getMessage());
             broadcast();
         }
+    }
+
+    /**
+     * Per-round standings paths, most recent first. The /run/ HTML page links to
+     * each finished round's standings (/coverage/standings/{runId}); rounds with
+     * no standings yet produce no link, so they are skipped.
+     */
+    private List<String> roundStandingsPaths(String id) {
+        List<String> paths = new ArrayList<>();
+        try {
+            String html = get("/gem/" + id + "/run/");
+            Matcher m = Pattern.compile("/gem/" + Pattern.quote(id) + "/coverage/standings/(\\d+)").matcher(html);
+            LinkedHashSet<String> runIds = new LinkedHashSet<>();
+            while (m.find()) runIds.add(m.group(1));
+            for (String runId : runIds) {
+                paths.add("/gem/" + id + "/coverage/standings/" + runId);
+            }
+        } catch (Exception ignored) {}
+        return paths;
     }
 
     public void fetchAll() {
@@ -225,7 +253,7 @@ public class TournamentService {
         state.setPairings(byRound.getOrDefault(maxRound, new ArrayList<>()), maxRound);
     }
 
-    private void parseStandings(String csv) {
+    private List<TournamentState.Standing> parseStandings(String csv) {
         List<List<String>> rows = parseCsv(csv);
         Map<String, String[]> heroes = state.getHeroByPlayer();
         List<TournamentState.Standing> list = new ArrayList<>();
@@ -241,7 +269,7 @@ public class TournamentService {
                 list.add(new TournamentState.Standing(rank, name, h[0], h[1], wins));
             } catch (Exception ignored) {}
         }
-        state.setStandings(list);
+        return list;
     }
 
     private String[] heroOf(Map<String, String[]> heroes, String name) {
