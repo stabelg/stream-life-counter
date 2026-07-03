@@ -6,6 +6,7 @@ import com.fabestonia.streamlifecounter.StreamWebSocketHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriUtils;
 
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -58,7 +60,7 @@ public class LifeController {
 
     @PostMapping("/name1/{playerName}")
     public void updatePlayer1Name(@PathVariable("playerName") String playerName) {
-        String v = playerName.toUpperCase();
+        String v = UriUtils.decode(playerName, StandardCharsets.UTF_8).toUpperCase();
         gameState.setPlayerL(v);
         config.set("playerL", v);
         broadcast();
@@ -82,7 +84,7 @@ public class LifeController {
 
     @PostMapping("/name2/{playerName}")
     public void updatePlayer2Name(@PathVariable("playerName") String playerName) {
-        String v = playerName.toUpperCase();
+        String v = UriUtils.decode(playerName, StandardCharsets.UTF_8).toUpperCase();
         gameState.setPlayerR(v);
         config.set("playerR", v);
         broadcast();
@@ -90,10 +92,53 @@ public class LifeController {
 
     @PostMapping("/round/{roundNumber}")
     public void updateRound(@PathVariable("roundNumber") String roundNumber) {
-        String v = roundNumber.toUpperCase();
+        String v = UriUtils.decode(roundNumber, StandardCharsets.UTF_8).toUpperCase();
         gameState.setRound(v);
         config.set("round", v);
         broadcast();
+    }
+
+    /**
+     * Carrega uma match inteira de uma vez (nomes, heróis, round e vida). Atômico:
+     * bumpa o matchVersion exatamente uma vez, para o app da stream reagir só a isto
+     * (e não aos ecos das próprias postagens de vida/timer). life1/life2 são opcionais;
+     * quando ausentes, a vida atual é preservada.
+     */
+    @PostMapping("/match/load")
+    public Map<String, Object> loadMatch(@RequestBody Map<String, Object> body) {
+        String playerL = str(body.get("p1Name")).toUpperCase();
+        String playerR = str(body.get("p2Name")).toUpperCase();
+        String heroL   = str(body.get("p1Hero")).toUpperCase();
+        String heroR   = str(body.get("p2Hero")).toUpperCase();
+        String round   = str(body.get("round")).toUpperCase();
+        int lifeL = intOr(body.get("life1"), gameState.getLifeL());
+        int lifeR = intOr(body.get("life2"), gameState.getLifeR());
+
+        gameState.applyMatchSelection(playerL, heroL, playerR, heroR, round, lifeL, lifeR);
+
+        config.set("playerL", playerL);
+        config.set("heroL", heroL);
+        config.set("playerR", playerR);
+        config.set("heroR", heroR);
+        config.set("round", round);
+        config.set("lifeL", String.valueOf(lifeL));
+        config.set("lifeR", String.valueOf(lifeR));
+
+        broadcast();
+        return Map.of("ok", true, "matchVersion", gameState.getMatchVersion());
+    }
+
+    private static String str(Object o) {
+        return o == null ? "" : o.toString().trim();
+    }
+
+    private static int intOr(Object o, int fallback) {
+        if (o == null) return fallback;
+        try {
+            return Math.max(0, (int) Math.round(Double.parseDouble(o.toString().trim())));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     @PostMapping("/trigger/draw")

@@ -867,13 +867,6 @@ function loadMatch(idx) {
   const roundLabel = tData.round ? 'Round ' + tData.round : '';
   if (roundLabel) get('in-round').value = roundLabel;
 
-  // Post names, heroes, round
-  post('name1/' + enc(p.p1Name || ''));
-  post('name2/' + enc(p.p2Name || ''));
-  if (p.p1Hero) post('hero1/' + enc(p.p1Hero));
-  if (p.p2Hero) post('hero2/' + enc(p.p2Hero));
-  if (roundLabel) post('round/' + enc(roundLabel));
-
   // Life reset with confirmation
   const life1 = h1 ? h1.life : 20;
   const life2 = h2 ? h2.life : 20;
@@ -882,11 +875,25 @@ function loadMatch(idx) {
     `Reset life points for this match?\n\n` +
     `${p.p1Name || 'Player 1'}: ${life1} HP\n` +
     `${p.p2Name || 'Player 2'}: ${life2} HP`;
+  const resetLife = confirm(confirmMsg);
 
-  if (confirm(confirmMsg)) {
-    post('player1/' + life1);
-    post('player2/' + life2);
-  }
+  // Carrega a match inteira num único POST atômico (/match/load). Isso bumpa o
+  // matchVersion uma vez só, para o app da stream aplicar a match sem loop.
+  // life1/life2 só vão quando o operador confirma o reset de vida.
+  const payload = {
+    p1Name: p.p1Name || '',
+    p2Name: p.p2Name || '',
+    p1Hero: p.p1Hero || '',
+    p2Hero: p.p2Hero || '',
+    round: roundLabel,
+  };
+  if (resetLife) { payload.life1 = life1; payload.life2 = life2; }
+
+  fetch('http://localhost:8080/match/load', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
 
   renderMatchPicker();
 }
