@@ -143,10 +143,16 @@ public class TournamentService {
         String id = state.getTournamentId();
         if (id.isEmpty()) return;
         try {
-            // The overall standings (/coverage/standings) stay empty while the
-            // tournament is in progress; each finished round has its own at
-            // /coverage/standings/{runId}. Fall back to the most recent round.
-            List<TournamentState.Standing> standings = parseStandings(get("/gem/" + id + "/coverage/standings"));
+            // The overall standings (/coverage/standings) are unavailable while the
+            // tournament is in progress — the GEM site returns either an empty CSV
+            // or an HTTP 500 for that case. Either way, fall back to the most
+            // recent finished round's standings at /coverage/standings/{runId}.
+            List<TournamentState.Standing> standings;
+            try {
+                standings = parseStandings(get("/gem/" + id + "/coverage/standings"));
+            } catch (Exception e) {
+                standings = List.of();
+            }
             if (standings.isEmpty()) {
                 for (String path : roundStandingsPaths(id)) {
                     standings = parseStandings(get(path));
