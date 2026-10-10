@@ -133,9 +133,18 @@
                    onerror="this.style.display='none'">`;
     }
 
+    // Nome do herói -> nome de arquivo ASCII-safe (đ->d, remove acentos e barra).
+    function heroFile(s) {
+      return (s || '')
+        .replace(/[đð]/g, 'd').replace(/[ĐÐ]/g, 'D').replace(/['"‘’“”]/g, '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/\//g, '');
+    }
+    function firstName(s) { return (s || '').trim().split(/\s+/)[0] || ''; }
+
     function heroImg(name, size) {
       if (!name) return '';
-      return `<img src="/heroes/${encodeURIComponent(name)}.jpg"
+      return `<img src="/heroes/${encodeURIComponent(heroFile(name))}.jpg"
                    style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0"
                    onerror="this.style.display='none'">`;
     }
@@ -178,7 +187,7 @@
               <span class="flag">${flag(s.country)}</span>
               ${heroImg(s.hero, 30)}
               <div class="sr-info">
-                <div class="sr-name">${esc(s.name)}</div>
+                <div class="sr-name">${esc(firstName(s.name))}</div>
                 <div class="sr-hero">${esc(s.hero)}</div>
               </div>
               <div class="wins-col">

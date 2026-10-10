@@ -148,9 +148,18 @@
                    onerror="this.style.display='none'">`;
     }
 
+    // Nome do herói -> nome de arquivo ASCII-safe (đ->d, remove acentos e barra).
+    function heroFile(s) {
+      return (s || '')
+        .replace(/[đð]/g, 'd').replace(/[ĐÐ]/g, 'D').replace(/['"‘’“”]/g, '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/\//g, '');
+    }
+    function firstName(s) { return (s || '').trim().split(/\s+/)[0] || ''; }
+
     function heroImg(name, size) {
       if (!name) return '';
-      return `<img src="/heroes/${encodeURIComponent(name)}.jpg"
+      return `<img src="/heroes/${encodeURIComponent(heroFile(name))}.jpg"
                    style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0"
                    onerror="this.style.display='none'">`;
     }
@@ -170,7 +179,7 @@
           <div class="player-row">
             <span class="flag">${flag(p.p1Country)}</span>
             ${heroImg(p.p1Hero, 26)}
-            <span class="pname">${esc(p.p1Name)}</span>
+            <span class="pname">${esc(firstName(p.p1Name))}</span>
             <span class="phero">${esc(p.p1Hero)}</span>
             ${badge(p.result, 1)}
           </div>
@@ -180,7 +189,7 @@
               ? `<span class="pname" style="color:rgba(255,255,255,0.22);font-style:italic">BYE</span>`
               : `<span class="flag">${flag(p.p2Country)}</span>
                  ${heroImg(p.p2Hero, 26)}
-                 <span class="pname">${esc(p.p2Name)}</span>
+                 <span class="pname">${esc(firstName(p.p2Name))}</span>
                  <span class="phero">${esc(p.p2Hero)}</span>
                  ${badge(p.result, 2)}`
             }

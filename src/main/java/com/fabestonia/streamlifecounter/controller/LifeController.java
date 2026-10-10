@@ -197,6 +197,28 @@ public class LifeController {
         startTime(seconds);
     }
 
+    /**
+     * Estende (ou reduz, com valor negativo) o countdown atual em {seconds}. Usado
+     * para prorrogações de rodada (chamada de juiz etc.). Preserva o estado pausado:
+     * se o timer estava pausado, continua pausado com o tempo já somado; se estava
+     * rodando, segue rodando. Sem timer ativo, inicia um novo com esse tempo.
+     */
+    @PostMapping("/timer/add/{seconds}")
+    public void addTime(@PathVariable("seconds") int seconds) {
+        boolean wasPaused = (timer != null && !isClockRunning && totalTime > 0);
+        int newTotal = Math.max(0, totalTime + seconds);
+        if (newTotal <= 0) {
+            stopTimer();
+            return;
+        }
+        startTime(newTotal);              // reinicia a contagem já com o novo total
+        if (wasPaused) {
+            isClockRunning = false;       // mantém congelado até o operador dar RESUME
+        }
+        gameState.setTimer(fmtRemaining(newTotal));
+        broadcast();
+    }
+
     private void cancelTimer() {
         if (timer != null) {
             timer.cancel();
@@ -221,9 +243,12 @@ public class LifeController {
                     gameState.setTimer("Time!");
                 } else {
                     Duration d = Duration.between(start, Instant.now());
+                    int hour = d.toHoursPart() * -1;
                     int min = d.toMinutesPart() * -1;
                     int sec = d.toSecondsPart() * -1;
-                    gameState.setTimer(pad(min) + ":" + pad(sec));
+                    gameState.setTimer(hour > 0
+                        ? pad(hour) + ":" + pad(min) + ":" + pad(sec)
+                        : pad(min) + ":" + pad(sec));
                 }
                 broadcast();
             }
@@ -256,5 +281,11 @@ public class LifeController {
 
     private String pad(int n) {
         return n < 10 ? "0" + n : String.valueOf(n);
+    }
+
+    /** Formata segundos restantes como MM:SS (ou HH:MM:SS acima de 1h). */
+    private String fmtRemaining(int total) {
+        int h = total / 3600, m = (total % 3600) / 60, s = total % 60;
+        return h > 0 ? pad(h) + ":" + pad(m) + ":" + pad(s) : pad(m) + ":" + pad(s);
     }
 }

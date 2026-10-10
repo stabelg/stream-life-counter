@@ -170,9 +170,18 @@
                  onerror="this.style.display='none'">`;
   }
 
+  // Nome do herói -> nome de arquivo ASCII-safe (đ->d, remove acentos e barra).
+  function heroFile(s) {
+    return (s || '')
+      .replace(/[đð]/g, 'd').replace(/[ĐÐ]/g, 'D').replace(/['"‘’“”]/g, '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\//g, '');
+  }
+  function firstName(s) { return (s || '').trim().split(/\s+/)[0] || ''; }
+
   function heroImg(name, size) {
     if (!name) return '';
-    return `<img src="/heroes/${encodeURIComponent(name)}.jpg"
+    return `<img src="/heroes/${encodeURIComponent(heroFile(name))}.jpg"
                  style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0"
                  onerror="this.style.display='none'">`;
   }
@@ -208,7 +217,7 @@
       <span class="flag">${flagImg(player.country, 22)}</span>
       ${heroImg(player.hero, 36)}
       <div class="info">
-        <div class="pname">${esc(player.name)}</div>
+        <div class="pname">${esc(firstName(player.name))}</div>
         <div class="phero">${esc(player.hero)}</div>
       </div>
       ${resHtml}
@@ -229,7 +238,7 @@
     card.innerHTML = `${heroImg(player.hero, 58)}
       <div style="display:flex;align-items:center;gap:6px;justify-content:center">
         ${flagImg(player.country, 18)}
-        <div class="champ-name">${esc(player.name)}</div>
+        <div class="champ-name">${esc(firstName(player.name))}</div>
       </div>
       <div class="champ-hero">${esc(player.hero)}</div>`;
   }

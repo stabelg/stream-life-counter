@@ -193,8 +193,8 @@
     function applyState(s) {
       setText('life-l', s.lifeL);
       setText('life-r', s.lifeR);
-      setText('name-l', s.playerL);
-      setText('name-r', s.playerR);
+      setText('name-l', firstName(s.playerL));
+      setText('name-r', firstName(s.playerR));
       setText('hero-l', s.heroL);
       setText('hero-r', s.heroR);
       setText('round',  s.round);
@@ -225,6 +225,7 @@
     function setText(id, val) {
       document.getElementById(id).textContent = val ?? '';
     }
+    function firstName(s) { return (s || '').trim().split(/\s+/)[0] || ''; }
 
     function setClass(id, base, extra) {
       document.getElementById(id).className = base + (extra ? ' ' + extra : '');

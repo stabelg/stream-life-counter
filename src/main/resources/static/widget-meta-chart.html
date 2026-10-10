@@ -201,7 +201,7 @@
           <div class="legend-row">
             <div class="leg-dot" style="background:${color}"></div>
             <img class="leg-avatar"
-                 src="/heroes/${encodeURIComponent(h.hero)}.jpg"
+                 src="/heroes/${encodeURIComponent(heroFile(h.hero))}.jpg"
                  onerror="this.style.opacity='0'">
             <div class="leg-name">${esc(h.hero)}</div>
             <div class="leg-pct" style="color:${color}">${h.pct.toFixed(1)}%</div>
@@ -249,6 +249,13 @@
 
   function esc(s) {
     return s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+  }
+  // Nome do herói -> nome de arquivo ASCII-safe (đ->d, remove acentos e barra).
+  function heroFile(s) {
+    return (s || '')
+      .replace(/[đð]/g, 'd').replace(/[ĐÐ]/g, 'D').replace(/['"‘’“”]/g, '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\//g, '');
   }
 
   function connect() {

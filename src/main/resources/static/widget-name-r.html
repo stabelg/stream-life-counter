@@ -19,9 +19,10 @@
   <script>
     function connect() {
       const ws = new WebSocket('ws://localhost:8080/ws');
-      ws.onmessage = e => { document.getElementById('v').textContent = JSON.parse(e.data).playerR; };
+      ws.onmessage = e => { document.getElementById('v').textContent = firstName(JSON.parse(e.data).playerR); };
       ws.onclose = () => setTimeout(connect, 3000);
     }
+    function firstName(s) { return (s || '').trim().split(/\s+/)[0] || ''; }
     connect();
   </script>
 </body>

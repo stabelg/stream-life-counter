@@ -485,6 +485,12 @@
               <button class="btn-ghost" onclick="post('timer/resume')">RESUME</button>
               <button class="btn-danger" onclick="post('timer/stop')">STOP</button>
             </div>
+            <div class="timer-row">
+              <button class="btn-ghost" onclick="post('timer/add/60')">+1m</button>
+              <button class="btn-ghost" onclick="post('timer/add/120')">+2m</button>
+              <button class="btn-ghost" onclick="post('timer/add/300')">+5m</button>
+              <button class="btn-ghost" onclick="post('timer/add/600')">+10m</button>
+            </div>
             <div class="row" style="margin-top:2px">
               <input type="number" id="in-minutes" placeholder="min" min="1" style="max-width:72px">
               <button class="btn-ghost" style="flex:1" onclick="post('timer/start/minutes/'+val('in-minutes'))">CUSTOM</button>
@@ -577,7 +583,7 @@ const HEROES = {
   blitz: [
     {name:'Arakni',life:20},{name:'Arakni, Solitary Confinement',life:19},{name:'Arakni, Web of Deceit',life:20},
     {name:'Aurora',life:20},{name:'Aurora, Emissary of Lightning',life:20},
-    {name:'Azalea',life:20},{name:'Benji, the Piercing Wind',life:17},{name:'Betsy',life:20},
+    {name:'Azalea',life:20},{name:'Baalghor, Omen of the End',life:33},{name:'Benji, the Piercing Wind',life:17},{name:'Betsy',life:20},
     {name:'Blaze, Firemind',life:17},{name:'Boltyn',life:20},
     {name:'Bravo',life:20},{name:'Bravo, Flattering Showman',life:20},{name:'Brevant, Civic Protector',life:20},
     {name:'Briar',life:20},{name:'Chane',life:20},{name:'Cindra',life:20},
@@ -585,12 +591,12 @@ const HEROES = {
     {name:'Dorinthea',life:20},{name:'Dorinthea, Quicksilver Prodigy',life:20},{name:'Dromai',life:20},
     {name:'Emperor, Dracai of Aesir',life:15},{name:'Enigma',life:20},{name:'Enigma, New Moon',life:20},
     {name:'Fai',life:20},{name:'Fang',life:20},{name:'Florian',life:20},
-    {name:'Genis Wotchuneed',life:20},{name:'Gravy Bones',life:20},{name:'Ira, Crimson Haze',life:20},
+    {name:'Genis Wotchuneed',life:20},{name:'Gravy Bones',life:20},{name:'Hala',life:20},{name:'Ira, Crimson Haze',life:20},
     {name:'Iyslander',life:18},{name:'Kano',life:15},
     {name:'Kassai',life:20},{name:'Kassai, Cintari Sellsword',life:20},{name:'Katsu',life:20},
     {name:'Kavdaen, Trader of Skins',life:20},
     {name:'Kayo',life:20},{name:'Kayo, Berserker Runt',life:19},{name:'Kayo, Strong-arm',life:20},
-    {name:'Levia',life:20},{name:'Lexi',life:20},{name:'Lyath Goldmane',life:20},
+    {name:'Levia',life:20},{name:'Lexi',life:20},{name:'Lyath Goldmane',life:20},{name:'Malice',life:20},
     {name:'Marlynn',life:20},{name:'Maxx Nitro',life:20},{name:'Melody, Sing-along',life:20},
     {name:'Nuu',life:20},{name:'Oldhim',life:20},{name:'Olympia',life:20},
     {name:'Oscilio',life:18},{name:'Oscilio, Scion of the Third Age',life:19},
@@ -599,12 +605,12 @@ const HEROES = {
     {name:'Riptide',life:19},{name:'Scurv, Stowaway',life:20},{name:'Shiyana, Diamond Gemini',life:20},
     {name:'Teklovossen',life:20},{name:'Terra',life:20},{name:'Tuffnut',life:20},
     {name:'Uzuri',life:20},{name:'Valda Brightaxe',life:21},{name:'Verdance',life:20},
-    {name:'Victor Goldmane',life:20},{name:'Viserai',life:20},{name:'Vynnset',life:20},
+    {name:'Victor Goldmane',life:20},{name:'Viserai',life:20},{name:'Viserai, Between Worlds',life:20},{name:'Vynnset',life:20},
     {name:'Yoji, Royal Protector',life:22},{name:'Zen',life:20},{name:'Zyggy',life:20},
   ].sort((a,b) => a.name.localeCompare(b.name)),
 
   cc: [
-    {name:'Arakni, 5L!p3d 7hRu 73h cR4X',life:38},{name:'Arakni, Huntsman',life:40},{name:'Arakni, Marionette',life:40},
+    {name:'Arakni, 5L!p3d 7hRu 7h3 cR4X',life:38},{name:'Arakni, Huntsman',life:40},{name:'Arakni, Marionette',life:40},
     {name:'Aurora, Legacy of Tempest',life:40},{name:'Aurora, Shooting Star',life:40},
     {name:'Azalea, Ace in the Hole',life:40},{name:'Betsy, Skin in the Game',life:40},
     {name:'Bravo, Showstopper',life:40},{name:'Bravo, Star of the Show',life:40},
@@ -620,7 +626,7 @@ const HEROES = {
     {name:'Kassai of the Golden Sand',life:40},{name:'Katsu, the Wanderer',life:40},
     {name:'Kayo, Armed and Dangerous',life:40},{name:'Kayo, Underhanded Cheat',life:40},
     {name:'Levia, Shadowborn Abomination',life:40},{name:'Lexi, Livewire',life:40},
-    {name:'Lyath Goldmane, Vile Savant',life:40},{name:'Marlynn, Treasure Hunter',life:40},
+    {name:'Lyath Goldmane, Vile Savant',life:40},{name:'Malice, Domina of the Dead',life:40},{name:'Marlynn, Treasure Hunter',life:40},
     {name:'Maxx The Hype Nitro',life:40},{name:'Nuu, Alluring Desire',life:40},
     {name:'Oldhim, Grandfather of Eternity',life:40},{name:'Olympia, Prized Fighter',life:40},
     {name:'Oscilio, Constella Intelligence',life:36},{name:'Oscilio, Forked Continuum',life:38},
@@ -631,7 +637,7 @@ const HEROES = {
     {name:'Teklovossen, Esteemed Magnate',life:40},{name:'Tuffnut, Bumbling Hulkster',life:40},
     {name:'Uzuri, Switchblade',life:40},{name:'Valda, Seismic Impact',life:40},
     {name:'Verdance, Thorn of the Rose',life:40},{name:'Victor Goldmane, High and Mighty',life:40},
-    {name:'Viserai, Rune Blood',life:40},{name:'Vynnset, Iron Maiden',life:40},
+    {name:'Viserai, Rune Blood',life:40},{name:'Viserai, the Forsaken',life:40},{name:'Vynnset, Iron Maiden',life:40},
     {name:'Zen, Tamer of Purpose',life:40},{name:'Zyggy Starlight',life:40},
   ].sort((a,b) => a.name.localeCompare(b.name)),
 };
@@ -642,6 +648,7 @@ const playerFormat = { l: 'blitz', r: 'blitz' };
 
 function val(id)    { return document.getElementById(id).value.trim(); }
 function enc(v)     { return encodeURIComponent(v); }
+function firstName(s) { return (s || '').trim().split(/\s+/)[0] || ''; }
 function get(id)    { return document.getElementById(id); }
 function setText(id, v) { get(id).textContent = v; }
 function post(path) { fetch('http://localhost:8080/' + path, { method: 'POST' }).catch(() => {}); }
@@ -818,23 +825,27 @@ function renderMatchPicker() {
     <div class="match-row${selectedMatchIdx === i ? ' active' : ''}" onclick="loadMatch(${i})">
       <span class="mp-table">T${p.table}</span>
       <div class="mp-player">
-        <div class="mp-pname">${escHtml(p.p1Name || '—')}</div>
+        <div class="mp-pname">${escHtml(firstName(p.p1Name) || '—')}</div>
         ${p.p1Hero ? `<div class="mp-phero">${escHtml(p.p1Hero)}</div>` : ''}
       </div>
       <span class="mp-vs">vs</span>
       <div class="mp-player" style="text-align:right">
-        <div class="mp-pname">${escHtml(p.p2Name || '—')}</div>
+        <div class="mp-pname">${escHtml(firstName(p.p2Name) || '—')}</div>
         ${p.p2Hero ? `<div class="mp-phero">${escHtml(p.p2Hero)}</div>` : ''}
       </div>
       ${p.result ? `<span class="mp-result">${escHtml(p.result)}</span>` : ''}
     </div>`).join('');
 }
 
+// Normaliza para casar grafias como "Dash I/O" (GEM) com "Dash IO" (lista): minúsculo,
+// remove barra e colapsa espaços.
+function normHero(s){ return (s||'').toLowerCase().replace(/[đð]/g,'d').replace(/['"‘’“”]/g,'').replace(/\//g,'').replace(/\s+/g,' ').trim(); }
+
 function findHero(heroName) {
   if (!heroName) return null;
-  const q = heroName.toLowerCase();
+  const q = normHero(heroName);
   for (const fmt of ['blitz', 'cc']) {
-    const h = HEROES[fmt].find(h => h.name.toLowerCase() === q);
+    const h = HEROES[fmt].find(h => normHero(h.name) === q);
     if (h) return { life: h.life, format: fmt };
   }
   return null;
@@ -849,9 +860,14 @@ function loadMatch(idx) {
   const h1 = findHero(p.p1Hero);
   const h2 = findHero(p.p2Hero);
 
+  // Os dois jogadores de uma match estão sempre no mesmo formato do torneio. Se um herói
+  // não casa na lista (grafia diferente do GEM, ex. leet, ou herói ausente), inferimos o
+  // formato do outro herói — assim CC/BLITZ atualiza mesmo com um nome não reconhecido.
+  const fmt = (h1 && h1.format) || (h2 && h2.format) || playerFormat.l || 'blitz';
+
   // setFormat must come first — it clears the hero input internally
-  if (h1) setFormat('l', h1.format);
-  if (h2) setFormat('r', h2.format);
+  setFormat('l', h1 ? h1.format : fmt);
+  setFormat('r', h2 ? h2.format : fmt);
 
   // Fill name + hero fields
   get('in-name-l').value = p.p1Name || '';
@@ -867,9 +883,11 @@ function loadMatch(idx) {
   const roundLabel = tData.round ? 'Round ' + tData.round : '';
   if (roundLabel) get('in-round').value = roundLabel;
 
-  // Life reset with confirmation
-  const life1 = h1 ? h1.life : 20;
-  const life2 = h2 ? h2.life : 20;
+  // Life reset with confirmation. Herói não reconhecido usa a vida padrão do formato
+  // inferido (CC=40, Blitz=20) em vez de sempre 20 — o operador ajusta se preciso.
+  const defLife = fmt === 'cc' ? 40 : 20;
+  const life1 = h1 ? h1.life : defLife;
+  const life2 = h2 ? h2.life : defLife;
 
   const confirmMsg =
     `Reset life points for this match?\n\n` +

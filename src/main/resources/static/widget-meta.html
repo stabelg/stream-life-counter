@@ -143,7 +143,7 @@
             <div class="meta-row">
               <span class="mr-rank${rank <= 3 ? ' top3' : ''}">${rank}</span>
               <img class="mr-avatar"
-                   src="/heroes/${encodeURIComponent(h.hero)}.jpg"
+                   src="/heroes/${encodeURIComponent(heroFile(h.hero))}.jpg"
                    onerror="this.style.opacity='0'">
               <div class="mr-info">
                 <div class="mr-name">${esc(h.hero)}</div>
@@ -177,6 +177,13 @@
 
     function esc(s) {
       return s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+    }
+    // Nome do herói -> nome de arquivo ASCII-safe (đ->d, remove acentos e barra).
+    function heroFile(s) {
+      return (s || '')
+        .replace(/[đð]/g, 'd').replace(/[ĐÐ]/g, 'D').replace(/['"‘’“”]/g, '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/\//g, '');
     }
 
     function connect() {
