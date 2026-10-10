@@ -4,12 +4,16 @@ import com.fabestonia.streamlifecounter.ConfigStore;
 import com.fabestonia.streamlifecounter.GameState;
 import com.fabestonia.streamlifecounter.StreamWebSocketHandler;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriUtils;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -32,6 +36,9 @@ public class LifeController {
     @Autowired private StreamWebSocketHandler wsHandler;
     @Autowired private ConfigStore            config;
 
+    @Value("${life.counter.path:}")
+    private String defaultPath;
+
     private void broadcast() {
         wsHandler.broadcast(gameState.toJson());
     }
@@ -39,6 +46,7 @@ public class LifeController {
     @PostMapping("/first/{first}")
     public void updateFirstPlayer(@PathVariable("first") Integer first) {
         gameState.setFirst(first);
+        writeFile("First.txt", String.valueOf(first));
         broadcast();
     }
 
@@ -47,6 +55,7 @@ public class LifeController {
         int v = Math.max(newLife, 0);
         gameState.setLifeL(v);
         config.set("lifeL", String.valueOf(v));
+        writeFile("LifeL.txt", String.valueOf(v));
         broadcast();
     }
 
@@ -55,6 +64,7 @@ public class LifeController {
         String v = UriUtils.decode(heroName, StandardCharsets.UTF_8).toUpperCase();
         gameState.setHeroL(v);
         config.set("heroL", v);
+        writeFile("HeroL.txt", v);
         broadcast();
     }
 
@@ -63,6 +73,7 @@ public class LifeController {
         String v = UriUtils.decode(playerName, StandardCharsets.UTF_8).toUpperCase();
         gameState.setPlayerL(v);
         config.set("playerL", v);
+        writeFile("PlayerL.txt", v);
         broadcast();
     }
 
@@ -71,6 +82,7 @@ public class LifeController {
         int v = Math.max(newLife, 0);
         gameState.setLifeR(v);
         config.set("lifeR", String.valueOf(v));
+        writeFile("LifeR.txt", String.valueOf(v));
         broadcast();
     }
 
@@ -79,6 +91,7 @@ public class LifeController {
         String v = UriUtils.decode(heroName, StandardCharsets.UTF_8).toUpperCase();
         gameState.setHeroR(v);
         config.set("heroR", v);
+        writeFile("HeroR.txt", v);
         broadcast();
     }
 
@@ -87,6 +100,7 @@ public class LifeController {
         String v = UriUtils.decode(playerName, StandardCharsets.UTF_8).toUpperCase();
         gameState.setPlayerR(v);
         config.set("playerR", v);
+        writeFile("PlayerR.txt", v);
         broadcast();
     }
 
@@ -95,6 +109,7 @@ public class LifeController {
         String v = UriUtils.decode(roundNumber, StandardCharsets.UTF_8).toUpperCase();
         gameState.setRound(v);
         config.set("round", v);
+        writeFile("Round.txt", v);
         broadcast();
     }
 
@@ -124,6 +139,14 @@ public class LifeController {
         config.set("lifeL", String.valueOf(lifeL));
         config.set("lifeR", String.valueOf(lifeR));
 
+        writeFile("PlayerL.txt", playerL);
+        writeFile("HeroL.txt", heroL);
+        writeFile("PlayerR.txt", playerR);
+        writeFile("HeroR.txt", heroR);
+        writeFile("Round.txt", round);
+        writeFile("LifeL.txt", String.valueOf(lifeL));
+        writeFile("LifeR.txt", String.valueOf(lifeR));
+
         broadcast();
         return Map.of("ok", true, "matchVersion", gameState.getMatchVersion());
     }
@@ -144,6 +167,7 @@ public class LifeController {
     @PostMapping("/trigger/draw")
     public void triggerDraw() {
         gameState.triggerDraw();
+        writeFile("Draw.txt", "DRAW" + Math.random());
         broadcast();
     }
 
@@ -153,6 +177,7 @@ public class LifeController {
         isClockRunning = false;
         cancelTimer();
         gameState.setTimer("00:00");
+        writeFile("Timer.txt", "00:00");
         broadcast();
     }
 
@@ -183,6 +208,7 @@ public class LifeController {
         isClockRunning = false;
         cancelTimer();
         gameState.setTimer("Untimed");
+        writeFile("Timer.txt", "Untimed");
         broadcast();
         startTimeUp();
     }
@@ -241,14 +267,17 @@ public class LifeController {
                     isClockRunning = false;
                     cancelTimer();
                     gameState.setTimer("Time!");
+                    writeFile("Timer.txt", "Time!");
                 } else {
                     Duration d = Duration.between(start, Instant.now());
                     int hour = d.toHoursPart() * -1;
                     int min = d.toMinutesPart() * -1;
                     int sec = d.toSecondsPart() * -1;
-                    gameState.setTimer(hour > 0
-                        ? pad(hour) + ":" + pad(min) + ":" + pad(sec)
-                        : pad(min) + ":" + pad(sec));
+                    String remaining = hour > 0
+                            ? pad(hour) + ":" + pad(min) + ":" + pad(sec)
+                            : pad(min) + ":" + pad(sec);
+                    gameState.setTimer(remaining);
+                    writeFile("Timer.txt", remaining);
                 }
                 broadcast();
             }
@@ -274,6 +303,7 @@ public class LifeController {
                     ? pad(hour) + ":" + pad(min) + ":" + pad(sec)
                     : pad(min) + ":" + pad(sec);
                 gameState.setTimer(time);
+                writeFile("Timer.txt", time);
                 broadcast();
             }
         }, DELAY, PERIOD);
@@ -283,7 +313,16 @@ public class LifeController {
         return n < 10 ? "0" + n : String.valueOf(n);
     }
 
-    /** Formata segundos restantes como MM:SS (ou HH:MM:SS acima de 1h). */
+    private void writeFile(String fileName, String value) {
+        if (defaultPath == null || defaultPath.isBlank()) return;
+        try (FileWriter writer = new FileWriter(new File(defaultPath, fileName), false)) {
+            writer.write(value);
+        } catch (IOException e) {
+            System.out.println("Failed to write file: " + fileName + " with value: " + value);
+        }
+    }
+
+
     private String fmtRemaining(int total) {
         int h = total / 3600, m = (total % 3600) / 60, s = total % 60;
         return h > 0 ? pad(h) + ":" + pad(m) + ":" + pad(s) : pad(m) + ":" + pad(s);
